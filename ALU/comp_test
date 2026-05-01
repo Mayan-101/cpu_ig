@@ -1,0 +1,179 @@
+#! /usr/bin/vvp
+:ivl_version "12.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/system.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_sys.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_textio.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2005_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/va_math.vpi";
+S_0x62693e717490 .scope module, "tb_comparator_unit" "tb_comparator_unit" 2 3;
+ .timescale -9 -12;
+v0x62693e76c910_0 .var "a", 31 0;
+v0x62693e76c9f0_0 .var "b", 31 0;
+v0x62693e76cac0_0 .net "eq", 0 0, v0x62693e76c520_0;  1 drivers
+v0x62693e76cbc0_0 .net "gt", 0 0, v0x62693e76c5c0_0;  1 drivers
+v0x62693e76cc90_0 .net "lt", 0 0, v0x62693e76c680_0;  1 drivers
+v0x62693e76cd80_0 .var "signed_mode", 0 0;
+S_0x62693e717620 .scope task, "check_exclusive" "check_exclusive" 2 36, 2 36 0, S_0x62693e717490;
+ .timescale -9 -12;
+v0x62693e717800_0 .var "label", 80 1;
+v0x62693e76bfa0_0 .var/i "sum_flags", 31 0;
+TD_tb_comparator_unit.check_exclusive ;
+    %load/vec4 v0x62693e76cac0_0;
+    %pad/u 32;
+    %load/vec4 v0x62693e76cc90_0;
+    %pad/u 32;
+    %add;
+    %load/vec4 v0x62693e76cbc0_0;
+    %pad/u 32;
+    %add;
+    %store/vec4 v0x62693e76bfa0_0, 0, 32;
+    %load/vec4 v0x62693e76cd80_0;
+    %flag_set/vec4 8;
+    %jmp/0 T_0.0, 8;
+    %pushi/vec4 1397181984, 0, 32; draw_string_vec4
+    %jmp/1 T_0.1, 8;
+T_0.0 ; End of true expr.
+    %pushi/vec4 1431196448, 0, 32; draw_string_vec4
+    %jmp/0 T_0.1, 8;
+ ; End of false expr.
+    %blend;
+T_0.1;
+    %load/vec4 v0x62693e76bfa0_0;
+    %cmpi/e 1, 0, 32;
+    %flag_mov 8, 4;
+    %jmp/0 T_0.2, 8;
+    %pushi/vec4 1346458451, 0, 32; draw_string_vec4
+    %jmp/1 T_0.3, 8;
+T_0.2 ; End of true expr.
+    %pushi/vec4 1178683724, 0, 32; draw_string_vec4
+    %jmp/0 T_0.3, 8;
+ ; End of false expr.
+    %blend;
+T_0.3;
+    %vpi_call 2 40 "$display", " %s | %h | %h | %b  | %b  | %b  | %s", S<1,vec4,u32>, v0x62693e76c910_0, v0x62693e76c9f0_0, v0x62693e76cac0_0, v0x62693e76cc90_0, v0x62693e76cbc0_0, S<0,vec4,u32> {2 0 0};
+    %end;
+S_0x62693e76c080 .scope module, "uut" "comparator_unit" 2 9, 3 3 0, S_0x62693e717490;
+ .timescale -9 -12;
+    .port_info 0 /INPUT 32 "a";
+    .port_info 1 /INPUT 32 "b";
+    .port_info 2 /INPUT 1 "signed_mode";
+    .port_info 3 /OUTPUT 1 "eq";
+    .port_info 4 /OUTPUT 1 "lt";
+    .port_info 5 /OUTPUT 1 "gt";
+v0x62693e76c340_0 .net "a", 31 0, v0x62693e76c910_0;  1 drivers
+v0x62693e76c440_0 .net "b", 31 0, v0x62693e76c9f0_0;  1 drivers
+v0x62693e76c520_0 .var "eq", 0 0;
+v0x62693e76c5c0_0 .var "gt", 0 0;
+v0x62693e76c680_0 .var "lt", 0 0;
+v0x62693e76c790_0 .net "signed_mode", 0 0, v0x62693e76cd80_0;  1 drivers
+E_0x62693e756310 .event anyedge, v0x62693e76c340_0, v0x62693e76c440_0, v0x62693e76c790_0;
+    .scope S_0x62693e76c080;
+T_1 ;
+    %wait E_0x62693e756310;
+    %load/vec4 v0x62693e76c340_0;
+    %load/vec4 v0x62693e76c440_0;
+    %cmp/e;
+    %flag_get/vec4 4;
+    %store/vec4 v0x62693e76c520_0, 0, 1;
+    %load/vec4 v0x62693e76c790_0;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_1.0, 8;
+    %load/vec4 v0x62693e76c340_0;
+    %load/vec4 v0x62693e76c440_0;
+    %cmp/s;
+    %flag_get/vec4 5;
+    %store/vec4 v0x62693e76c680_0, 0, 1;
+    %load/vec4 v0x62693e76c440_0;
+    %load/vec4 v0x62693e76c340_0;
+    %cmp/s;
+    %flag_get/vec4 5;
+    %store/vec4 v0x62693e76c5c0_0, 0, 1;
+    %jmp T_1.1;
+T_1.0 ;
+    %load/vec4 v0x62693e76c340_0;
+    %load/vec4 v0x62693e76c440_0;
+    %cmp/u;
+    %flag_get/vec4 5;
+    %store/vec4 v0x62693e76c680_0, 0, 1;
+    %load/vec4 v0x62693e76c440_0;
+    %load/vec4 v0x62693e76c340_0;
+    %cmp/u;
+    %flag_get/vec4 5;
+    %store/vec4 v0x62693e76c5c0_0, 0, 1;
+T_1.1 ;
+    %jmp T_1;
+    .thread T_1, $push;
+    .scope S_0x62693e717490;
+T_2 ;
+    %vpi_call 2 12 "$display", "Starting Comparator Unit Tests..." {0 0 0};
+    %vpi_call 2 13 "$display", " Mode | Input A  | Input B  | EQ | LT | GT | Valid?" {0 0 0};
+    %vpi_call 2 14 "$display", "-----------------------------------------------------" {0 0 0};
+    %pushi/vec4 4277009102, 0, 32;
+    %store/vec4 v0x62693e76c910_0, 0, 32;
+    %pushi/vec4 4277009102, 0, 32;
+    %store/vec4 v0x62693e76c9f0_0, 0, 32;
+    %pushi/vec4 0, 0, 1;
+    %store/vec4 v0x62693e76cd80_0, 0, 1;
+    %delay 10000, 0;
+    %pushi/vec4 0, 0, 32; draw_string_vec4
+    %pushi/vec4 4551029, 0, 32; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %pushi/vec4 24940, 0, 16; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %store/vec4 v0x62693e717800_0, 0, 80;
+    %fork TD_tb_comparator_unit.check_exclusive, S_0x62693e717620;
+    %join;
+    %pushi/vec4 4294967295, 0, 32;
+    %store/vec4 v0x62693e76c910_0, 0, 32;
+    %pushi/vec4 1, 0, 32;
+    %store/vec4 v0x62693e76c9f0_0, 0, 32;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v0x62693e76cd80_0, 0, 1;
+    %delay 10000, 0;
+    %pushi/vec4 5466471, 0, 32; draw_string_vec4
+    %pushi/vec4 1852138528, 0, 32; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %pushi/vec4 19540, 0, 16; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %store/vec4 v0x62693e717800_0, 0, 80;
+    %fork TD_tb_comparator_unit.check_exclusive, S_0x62693e717620;
+    %join;
+    %pushi/vec4 4294967295, 0, 32;
+    %store/vec4 v0x62693e76c910_0, 0, 32;
+    %pushi/vec4 1, 0, 32;
+    %store/vec4 v0x62693e76c9f0_0, 0, 32;
+    %pushi/vec4 0, 0, 1;
+    %store/vec4 v0x62693e76cd80_0, 0, 1;
+    %delay 10000, 0;
+    %pushi/vec4 3706114766, 0, 33;
+    %concati/vec4 3704277056, 0, 32;
+    %concati/vec4 18260, 0, 15;
+    %store/vec4 v0x62693e717800_0, 0, 80;
+    %fork TD_tb_comparator_unit.check_exclusive, S_0x62693e717620;
+    %join;
+    %pushi/vec4 5, 0, 32;
+    %store/vec4 v0x62693e76c910_0, 0, 32;
+    %pushi/vec4 4294967291, 0, 32;
+    %store/vec4 v0x62693e76c9f0_0, 0, 32;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v0x62693e76cd80_0, 0, 1;
+    %delay 10000, 0;
+    %pushi/vec4 5271411, 0, 32; draw_string_vec4
+    %pushi/vec4 540942414, 0, 32; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %pushi/vec4 25959, 0, 16; draw_string_vec4
+    %concat/vec4; draw_string_vec4
+    %store/vec4 v0x62693e717800_0, 0, 80;
+    %fork TD_tb_comparator_unit.check_exclusive, S_0x62693e717620;
+    %join;
+    %vpi_call 2 33 "$finish" {0 0 0};
+    %end;
+    .thread T_2;
+# The file index is used to find the file name in the following table.
+:file_names 4;
+    "N/A";
+    "<interactive>";
+    "tb_comparator_unit.v";
+    "comparator_unit.v";

@@ -1,0 +1,276 @@
+#! /c/Source/iverilog-install/bin/vvp
+:ivl_version "12.0 (devel)" "(s20150603-1539-g2693dd32b)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "C:\iverilog\lib\ivl\system.vpi";
+:vpi_module "C:\iverilog\lib\ivl\vhdl_sys.vpi";
+:vpi_module "C:\iverilog\lib\ivl\vhdl_textio.vpi";
+:vpi_module "C:\iverilog\lib\ivl\v2005_math.vpi";
+:vpi_module "C:\iverilog\lib\ivl\va_math.vpi";
+S_000001a92bb1d660 .scope module, "tb_address_decoder" "tb_address_decoder" 2 3;
+ .timescale -9 -12;
+v000001a92bb85ab0_0 .var "addr", 31 0;
+v000001a92bb85b50_0 .net "io_addr", 15 0, L_000001a92bb87ce0;  1 drivers
+v000001a92bb85c90_0 .net "io_sel", 0 0, L_000001a92bb862a0;  1 drivers
+v000001a92bb85bf0_0 .net "io_we", 0 0, L_000001a92bb16af0;  1 drivers
+v000001a92bb853d0_0 .net "ram_addr", 4 0, L_000001a92bb872e0;  1 drivers
+v000001a92bb85650_0 .net "ram_sel", 0 0, L_000001a92bb15f20;  1 drivers
+v000001a92bb85470_0 .net "ram_we", 0 0, L_000001a92bb168c0;  1 drivers
+v000001a92bb85510_0 .var "re", 0 0;
+v000001a92bb855b0_0 .net "rom_addr", 9 0, L_000001a92bb86660;  1 drivers
+v000001a92bb856f0_0 .net "rom_sel", 0 0, L_000001a92bb87240;  1 drivers
+L_000001a92bb881a8 .functor BUFT 1, C4<0>, C4<0>, C4<0>, C4<0>;
+v000001a92bb85d30_0 .net "rom_we", 0 0, L_000001a92bb881a8;  1 drivers
+v000001a92bb85dd0_0 .var "we", 0 0;
+v000001a92bb87740_0 .var "wr_data", 31 0;
+S_000001a92bb1b8b0 .scope module, "uut" "address_decoder" 2 20, 3 3 0, S_000001a92bb1d660;
+ .timescale -9 -12;
+    .port_info 0 /INPUT 32 "addr";
+    .port_info 1 /INPUT 1 "we";
+    .port_info 2 /INPUT 1 "re";
+    .port_info 3 /INPUT 32 "wr_data";
+    .port_info 4 /OUTPUT 1 "rom_sel";
+    .port_info 5 /OUTPUT 1 "ram_sel";
+    .port_info 6 /OUTPUT 1 "io_sel";
+    .port_info 7 /OUTPUT 10 "rom_addr";
+    .port_info 8 /OUTPUT 5 "ram_addr";
+    .port_info 9 /OUTPUT 16 "io_addr";
+    .port_info 10 /OUTPUT 1 "rom_we";
+    .port_info 11 /OUTPUT 1 "ram_we";
+    .port_info 12 /OUTPUT 1 "io_we";
+L_000001a92bb15f20 .functor AND 1, L_000001a92bb86a20, L_000001a92bb86520, C4<1>, C4<1>;
+L_000001a92bb168c0 .functor AND 1, v000001a92bb85dd0_0, L_000001a92bb15f20, C4<1>, C4<1>;
+L_000001a92bb16af0 .functor AND 1, v000001a92bb85dd0_0, L_000001a92bb862a0, C4<1>, C4<1>;
+L_000001a92bb88088 .functor BUFT 1, C4<00000000000000000001000000000000>, C4<0>, C4<0>, C4<0>;
+v000001a92bc96e70_0 .net/2u *"_ivl_0", 31 0, L_000001a92bb88088;  1 drivers
+v000001a92bc97090_0 .net *"_ivl_10", 0 0, L_000001a92bb86520;  1 drivers
+L_000001a92bb88160 .functor BUFT 1, C4<00000000000000000001000010000000>, C4<0>, C4<0>, C4<0>;
+v000001a92bb1c320_0 .net/2u *"_ivl_14", 31 0, L_000001a92bb88160;  1 drivers
+L_000001a92bb880d0 .functor BUFT 1, C4<00000000000000000001000000000000>, C4<0>, C4<0>, C4<0>;
+v000001a92bb22f30_0 .net/2u *"_ivl_4", 31 0, L_000001a92bb880d0;  1 drivers
+v000001a92bb1ccc0_0 .net *"_ivl_6", 0 0, L_000001a92bb86a20;  1 drivers
+L_000001a92bb88118 .functor BUFT 1, C4<00000000000000000001000010000000>, C4<0>, C4<0>, C4<0>;
+v000001a92bb1d7f0_0 .net/2u *"_ivl_8", 31 0, L_000001a92bb88118;  1 drivers
+v000001a92bb85790_0 .net "addr", 31 0, v000001a92bb85ab0_0;  1 drivers
+v000001a92bb85e70_0 .net "io_addr", 15 0, L_000001a92bb87ce0;  alias, 1 drivers
+v000001a92bb85fb0_0 .net "io_sel", 0 0, L_000001a92bb862a0;  alias, 1 drivers
+v000001a92bb85f10_0 .net "io_we", 0 0, L_000001a92bb16af0;  alias, 1 drivers
+v000001a92bb85970_0 .net "ram_addr", 4 0, L_000001a92bb872e0;  alias, 1 drivers
+v000001a92bb85830_0 .net "ram_sel", 0 0, L_000001a92bb15f20;  alias, 1 drivers
+v000001a92bb858d0_0 .net "ram_we", 0 0, L_000001a92bb168c0;  alias, 1 drivers
+v000001a92bb85a10_0 .net "re", 0 0, v000001a92bb85510_0;  1 drivers
+v000001a92bb850b0_0 .net "rom_addr", 9 0, L_000001a92bb86660;  alias, 1 drivers
+v000001a92bb85150_0 .net "rom_sel", 0 0, L_000001a92bb87240;  alias, 1 drivers
+v000001a92bb851f0_0 .net "rom_we", 0 0, L_000001a92bb881a8;  alias, 1 drivers
+v000001a92bb85290_0 .net "we", 0 0, v000001a92bb85dd0_0;  1 drivers
+v000001a92bb85330_0 .net "wr_data", 31 0, v000001a92bb87740_0;  1 drivers
+L_000001a92bb87240 .cmp/gt 32, L_000001a92bb88088, v000001a92bb85ab0_0;
+L_000001a92bb86a20 .cmp/ge 32, v000001a92bb85ab0_0, L_000001a92bb880d0;
+L_000001a92bb86520 .cmp/gt 32, L_000001a92bb88118, v000001a92bb85ab0_0;
+L_000001a92bb862a0 .cmp/ge 32, v000001a92bb85ab0_0, L_000001a92bb88160;
+L_000001a92bb86660 .part v000001a92bb85ab0_0, 2, 10;
+L_000001a92bb872e0 .part v000001a92bb85ab0_0, 2, 5;
+L_000001a92bb87ce0 .part v000001a92bb85ab0_0, 0, 16;
+    .scope S_000001a92bb1d660;
+T_0 ;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %pushi/vec4 0, 0, 1;
+    %store/vec4 v000001a92bb85dd0_0, 0, 1;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v000001a92bb85510_0, 0, 1;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v000001a92bb87740_0, 0, 32;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %nor/r;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.4, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.4;
+    %jmp/1 T_0.3, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.3;
+    %jmp/1 T_0.2, 8;
+    %load/vec4 v000001a92bb855b0_0;
+    %cmpi/ne 0, 0, 10;
+    %flag_or 8, 6;
+T_0.2;
+    %jmp/0xz  T_0.0, 8;
+    %vpi_call 2 42 "$display", "FAIL: Test 1 (ROM addr 0)" {0 0 0};
+    %jmp T_0.1;
+T_0.0 ;
+    %vpi_call 2 44 "$display", "PASS: Test 1 (ROM addr 0 -> rom_sel=1)" {0 0 0};
+T_0.1 ;
+    %pushi/vec4 4092, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %nor/r;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.9, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.9;
+    %jmp/1 T_0.8, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.8;
+    %jmp/1 T_0.7, 8;
+    %load/vec4 v000001a92bb855b0_0;
+    %cmpi/ne 1023, 0, 10;
+    %flag_or 8, 6;
+T_0.7;
+    %jmp/0xz  T_0.5, 8;
+    %vpi_call 2 50 "$display", "FAIL: Test 2 (ROM addr 0FFC) rom_addr=%h", v000001a92bb855b0_0 {0 0 0};
+    %jmp T_0.6;
+T_0.5 ;
+    %vpi_call 2 52 "$display", "PASS: Test 2 (ROM addr 0FFC -> rom_sel=1, max addr)" {0 0 0};
+T_0.6 ;
+    %pushi/vec4 256, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v000001a92bb85dd0_0, 0, 1;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb85d30_0;
+    %cmpi/ne 0, 0, 1;
+    %jmp/0xz  T_0.10, 6;
+    %vpi_call 2 59 "$display", "FAIL: Test 3 (ROM Write Attempt)" {0 0 0};
+    %jmp T_0.11;
+T_0.10 ;
+    %vpi_call 2 61 "$display", "PASS: Test 3 (ROM Write Attempt -> rom_we=0)" {0 0 0};
+T_0.11 ;
+    %pushi/vec4 4096, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v000001a92bb85dd0_0, 0, 1;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.17, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %nor/r;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.17;
+    %jmp/1 T_0.16, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.16;
+    %jmp/1 T_0.15, 8;
+    %load/vec4 v000001a92bb853d0_0;
+    %cmpi/ne 0, 0, 5;
+    %flag_or 8, 6;
+T_0.15;
+    %jmp/1 T_0.14, 8;
+    %load/vec4 v000001a92bb85470_0;
+    %cmpi/ne 1, 0, 1;
+    %flag_or 8, 6;
+T_0.14;
+    %jmp/0xz  T_0.12, 8;
+    %vpi_call 2 68 "$display", "FAIL: Test 4 (RAM addr 1000)" {0 0 0};
+    %jmp T_0.13;
+T_0.12 ;
+    %vpi_call 2 70 "$display", "PASS: Test 4 (RAM addr 1000 -> ram_sel=1, ram_we=1)" {0 0 0};
+T_0.13 ;
+    %pushi/vec4 4220, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.22, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %nor/r;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.22;
+    %jmp/1 T_0.21, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.21;
+    %jmp/1 T_0.20, 8;
+    %load/vec4 v000001a92bb853d0_0;
+    %cmpi/ne 31, 0, 5;
+    %flag_or 8, 6;
+T_0.20;
+    %jmp/0xz  T_0.18, 8;
+    %vpi_call 2 76 "$display", "FAIL: Test 5 (RAM addr 107C)" {0 0 0};
+    %jmp T_0.19;
+T_0.18 ;
+    %vpi_call 2 78 "$display", "PASS: Test 5 (RAM addr 107C -> ram_sel=1, max addr)" {0 0 0};
+T_0.19 ;
+    %pushi/vec4 4224, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v000001a92bb85dd0_0, 0, 1;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.27, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.27;
+    %jmp/1 T_0.26, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %nor/r;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.26;
+    %jmp/1 T_0.25, 8;
+    %load/vec4 v000001a92bb85bf0_0;
+    %cmpi/ne 1, 0, 1;
+    %flag_or 8, 6;
+T_0.25;
+    %jmp/0xz  T_0.23, 8;
+    %vpi_call 2 85 "$display", "FAIL: Test 6 (I/O addr 1080)" {0 0 0};
+    %jmp T_0.24;
+T_0.23 ;
+    %vpi_call 2 87 "$display", "PASS: Test 6 (I/O addr 1080 -> io_sel=1, io_we=1)" {0 0 0};
+T_0.24 ;
+    %pushi/vec4 305419896, 0, 32;
+    %store/vec4 v000001a92bb85ab0_0, 0, 32;
+    %delay 5000, 0;
+    %load/vec4 v000001a92bb856f0_0;
+    %flag_set/vec4 8;
+    %jmp/1 T_0.32, 8;
+    %load/vec4 v000001a92bb85650_0;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.32;
+    %jmp/1 T_0.31, 8;
+    %load/vec4 v000001a92bb85c90_0;
+    %nor/r;
+    %flag_set/vec4 9;
+    %flag_or 8, 9;
+T_0.31;
+    %jmp/1 T_0.30, 8;
+    %load/vec4 v000001a92bb85b50_0;
+    %cmpi/ne 22136, 0, 16;
+    %flag_or 8, 6;
+T_0.30;
+    %jmp/0xz  T_0.28, 8;
+    %vpi_call 2 93 "$display", "FAIL: Test 7 (I/O deep addr)" {0 0 0};
+    %jmp T_0.29;
+T_0.28 ;
+    %vpi_call 2 95 "$display", "PASS: Test 7 (I/O deep addr -> io_sel=1, io_addr=%h)", v000001a92bb85b50_0 {0 0 0};
+T_0.29 ;
+    %delay 10000, 0;
+    %vpi_call 2 98 "$display", "All Address Decoder tests completed." {0 0 0};
+    %vpi_call 2 99 "$finish" {0 0 0};
+    %end;
+    .thread T_0;
+# The file index is used to find the file name in the following table.
+:file_names 4;
+    "N/A";
+    "<interactive>";
+    "tb_address_decoder.v";
+    "address_decoder.v";

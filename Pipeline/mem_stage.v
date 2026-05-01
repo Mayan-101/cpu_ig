@@ -1,0 +1,68 @@
+`timescale 1ns / 1ps
+
+module mem_stage (
+    input  wire clk,
+    input  wire rst,
+    
+    // EX/MEM Pipeline Register Inputs
+    input  wire [31:0] ex_mem_alu_result,
+    input  wire ex_mem_zero,
+    input  wire [31:0] ex_mem_wr_data,
+    input  wire [5:0]  ex_mem_rd_addr,
+    
+    input  wire ex_mem_mem_read,
+    input  wire ex_mem_mem_write,
+    input  wire ex_mem_reg_write,
+    input  wire ex_mem_is_io,
+    input  wire [1:0] ex_mem_wb_src,
+    
+    // D-Cache / Memory Interface Inputs
+    input  wire [31:0] dcache_data,
+    input  wire dcache_hit,
+    
+    // D-Cache Outputs (Combinational)
+    output wire [31:0] dcache_addr,
+    output wire [31:0] dcache_wr_data,
+    output wire dcache_we,
+    output wire dcache_re,
+    
+    // Stall/Flush Control
+    output wire cache_stall,
+    
+    // MEM/WB Pipeline Register Outputs
+    output reg  [31:0] mem_wb_alu_result,
+    output reg  [31:0] mem_wb_mem_data,
+    output reg  [5:0]  mem_wb_rd_addr,
+    output reg  mem_wb_reg_write,
+    output reg  [1:0]  mem_wb_wb_src,
+    output reg  mem_wb_is_io
+);
+
+    // Interfaces directly to D-Cache
+    assign dcache_addr = ex_mem_alu_result;
+    assign dcache_wr_data = ex_mem_wr_data;
+    assign dcache_we = ex_mem_mem_write && !ex_mem_is_io; // I/O uses separate space
+    assign dcache_re = ex_mem_mem_read && !ex_mem_is_io;
+
+    // Cache stall if reading/writing and it's a miss
+    assign cache_stall = (dcache_re || dcache_we) && !dcache_hit;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            mem_wb_alu_result <= 0;
+            mem_wb_mem_data <= 0;
+            mem_wb_rd_addr <= 0;
+            mem_wb_reg_write <= 0;
+            mem_wb_wb_src <= 0;
+            mem_wb_is_io <= 0;
+        end else if (!cache_stall) begin
+            mem_wb_alu_result <= ex_mem_alu_result;
+            mem_wb_mem_data <= dcache_data;
+            mem_wb_rd_addr <= ex_mem_rd_addr;
+            mem_wb_reg_write <= ex_mem_reg_write;
+            mem_wb_wb_src <= ex_mem_wb_src;
+            mem_wb_is_io <= ex_mem_is_io;
+        end
+    end
+
+endmodule
