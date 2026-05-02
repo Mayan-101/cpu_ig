@@ -1,6 +1,6 @@
-# RISC CPU Documentation
+# It's a CPU, i guess... Bit RISCy 😭 
 
-Welcome to the documentation for the 5-stage pipelined RISC CPU.
+I hope you will read stuff below
 
 ## Contents
 
