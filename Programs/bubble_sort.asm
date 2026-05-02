@@ -5,16 +5,6 @@
 LUI x1, 0x20000        ; x1 = RAM Start
 ADDI x2, x0, 10        ; size = 10
 
-; Fill with some values: 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-ADDI x3, x0, 10        ; val
-ADDI x4, x0, 10        ; counter
-InitLoop:
-SW x3, 0(x1)
-ADDI x3, x3, -1
-ADDI x1, x1, 4
-ADDI x4, x4, -1
-BNE x4, x0, InitLoop
-
 ; --- Bubble Sort ---
 LUI x1, 0x20000        ; Base address
 ADDI x2, x0, 0         ; i = 0

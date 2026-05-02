@@ -11,7 +11,6 @@ module rom #(
     integer i;
     initial begin
         for (i = 0; i < DEPTH; i = i + 1) mem[i] = 32'd0;
-        $readmemh("rom_init.mem", mem);
     end
     assign data = mem[addr];
 endmodule

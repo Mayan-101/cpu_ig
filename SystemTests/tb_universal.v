@@ -21,7 +21,7 @@ module tb_universal;
 
     // Simulation Control
     integer i;
-    reg [1023:0] prog_file;
+    reg [1023:0] prog_file, data_file;
     integer dump_start = 0;
     integer dump_end = 127;
     integer show_float = 0;
@@ -32,6 +32,12 @@ module tb_universal;
         if ($value$plusargs("PROG=%s", prog_file)) begin
             $readmemh(prog_file, uut.main_rom.mem);
         end
+        
+        // Load Data File (RAM)
+        if (!$value$plusargs("DATA=%s", data_file)) begin
+            data_file = "Programs/ram_init.mem";
+        end
+        $readmemh(data_file, uut.main_ram.mem);
 
         // Get Parameters
         if (!$value$plusargs("DUMP_START=%d", dump_start)) dump_start = 0;

@@ -20,7 +20,6 @@ module ram_async #(
     integer i;
     initial begin
         for (i = 0; i < DEPTH; i = i + 1) mem[i] = 32'd0;
-        $readmemh("ram_init.mem", mem);
     end
 
     always @(posedge clk) begin

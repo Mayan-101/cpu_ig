@@ -13,7 +13,6 @@ module rom_async_dp #(
     integer i;
     initial begin
         for (i = 0; i < DEPTH; i = i + 1) mem[i] = 32'd0;
-        $readmemh("rom_init.mem", mem);
     end
     assign data_a = mem[addr_a];
     assign data_b = mem[addr_b];

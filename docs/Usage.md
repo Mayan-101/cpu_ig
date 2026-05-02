@@ -1,32 +1,26 @@
-# Running and Testing
+## Quick Start
 
-The CPU environment includes an automated script to assemble, compile, and simulate programs.
+1.  **Modify Code**: Edit the `.asm` file in `Programs/`.
+2.  **Modify Data**: Edit `Programs/ram_init.mem` to initialize RAM at `0x20000000`.
+3.  **Run**: Use the automated script:
+    ```powershell
+    .\Scripts\test_universal.bat <program_name>
+    ```
 
-## Using the Universal Testbench
+### Example
+To test bubble sort with your own data:
+1.  Put your hex values in `Programs/ram_init.mem`.
+2.  Run: `.\Scripts\test_universal.bat bubble_sort`
 
-Run the `test_universal.bat` script located in the `Scripts/` folder.
+### Script Parameters
+`.\Scripts\test_universal.bat <name> [dump_start] [dump_end] [hex_mode]`
 
-```powershell
-.\Scripts\test_universal.bat <program> [start] [end] [hex]
-```
+- **`<name>`**: The `.asm` filename (without extension).
+- **`[dump_start/end]`**: The decimal range of RAM to display at the end.
+- **`[hex_mode]`**: Set to `1` for Hex output, `0` for Decimal.
 
-### Parameters
+### Example Commands
+- **Basic Run**: `.\Scripts\test_universal.bat bubble_sort 0 10 0`
+- **Matrix Multiplication (Hex Mode)**: `.\Scripts\test_universal.bat matmul 0 32 1`
 
-1.  **`<program>`**: The filename of your `.asm` file in the `Programs/` directory (exclude the extension).
-2.  **`[start]`**: (Optional) The starting decimal index in RAM to dump.
-3.  **`[end]`**: (Optional) The ending decimal index in RAM to dump.
-4.  **`[hex]`**: (Optional) Set to `1` for hex output, `0` for decimal.
-
-## Example
-
-To run the `matmul` program and view the first 20 results in hex:
-```powershell
-.\Scripts\test_universal.bat matmul 0 20 1
-```
-
-## Adding New Programs
-
-1.  Create a new `.asm` file in `Programs/`.
-2.  Use the assembly syntax defined in `ISA.md`.
-3.  End your program with `HLT` to stop the simulation.
-4.  Run the test script with your program name.
+> **Note**: The script automatically re-assembles your `.asm` into a `.mem` file before each run. Only edit `.asm` (for code) and `ram_init.mem` (for data).
