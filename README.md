@@ -4,10 +4,10 @@ Welcome to the documentation for the 5-stage pipelined RISC CPU.
 
 ## Contents
 
-- [**Getting Started**](GettingStarted.md): Environment setup and first run.
-- [**ISA Reference**](ISA.md): Full instruction set and register documentation.
-- [**Memory Map**](MemoryMap.md): System address layout.
-- [**Usage & Testing**](Usage.md): How to write and run programs.
+- [**Getting Started**](docs/GettingStarted.md): Environment setup and first run.
+- [**ISA Reference**](docs/ISA.md): Full instruction set and register documentation.
+- [**Memory Map**](docs/MemoryMap.md): System address layout.
+- [**Usage & Testing**](docs/Usage.md): How to write and run programs.
 
 ## Key Features
 
