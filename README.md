@@ -14,4 +14,17 @@ Welcome to the documentation for the 5-stage pipelined RISC CPU.
 - **5-Stage Pipeline**: IF, ID, EX, MEM, WB.
 - **Hazard Unit**: Full data forwarding and load-use stall detection.
 - **FPU Integrated**: Support for floating-point arithmetic and conversions.
+- **Cache Integrated**: 4-way Set Associative, Write-Back, LRU replacement policy, Write-Allocate Cache.
 - **Automated Toolchain**: Integrated Python assembler and Icarus Verilog testbench.
+
+## ToDo List
+- [ ] Add support for Interrupts (Intregation with SoC).
+- [ ] Add support for virtual memory.
+- [ ] Add support for Paged Virtual Memory.
+- [ ] Add support for MMU.
+- [ ] Add support for out-of-order execution.
+- [ ] Add support for branch prediction.
+- [ ] Add support for multiple cores.
+
+
+
