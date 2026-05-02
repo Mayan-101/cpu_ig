@@ -23,9 +23,9 @@ module tb_cpu_core_cache;
         $display(".3 — CPU + Cache Integration Test");
         $monitor("Time=%0t | PC=%h | Instr=%h | R1=%h | R2=%h | R3=%h | Stall=%b", 
                  $time, uut.cpu.pc, uut.cpu.instr_in, 
-                 uut.cpu.rf.banks[0].bank_inst.bank[1].r.q,
-                 uut.cpu.rf.banks[0].bank_inst.bank[2].r.q,
-                 uut.cpu.rf.banks[0].bank_inst.bank[3].r.q,
+                 uut.cpu.rf.gp_regs[1].reg_inst.q,
+                 uut.cpu.rf.gp_regs[2].reg_inst.q,
+                 uut.cpu.rf.gp_regs[3].reg_inst.q,
                  stall_cpu);
         
         clk = 0;
@@ -39,10 +39,10 @@ module tb_cpu_core_cache;
         #2000;
         
         $display("Final Verification:");
-        $display("R2 (should be 0): %h", uut.cpu.rf.banks[0].bank_inst.bank[2].r.q);
-        $display("R3 (should be loaded value): %h", uut.cpu.rf.banks[0].bank_inst.bank[3].r.q);
+        $display("R2 (should be 0): %h", uut.cpu.rf.gp_regs[2].reg_inst.q);
+        $display("R3 (should be loaded value): %h", uut.cpu.rf.gp_regs[3].reg_inst.q);
         
-        if (uut.cpu.rf.banks[0].bank_inst.bank[2].r.q == 0)
+        if (uut.cpu.rf.gp_regs[2].reg_inst.q == 0)
             $display("PASS: Loop completed successfully.");
         else
             $display("FAIL: Loop did not complete correctly.");

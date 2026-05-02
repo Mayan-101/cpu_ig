@@ -14,6 +14,37 @@
 
 ---
 
+## Architecture State
+
+### Register File
+The CPU uses a flattened, single-bank register file consisting of 34 registers:
+* **R0**: Hardwired to zero (read-only)
+* **R1 – R31**: 31 General Purpose Registers
+* **R32 (ACC)**: Accumulator (used for specific operations)
+* **R33 (B)**: B Register
+
+### Program Status Word (PSW)
+The 32-bit PSW register holds status flags, system states, and control bits:
+
+| Bit(s) | Name | Description |
+|---|---|---|
+| 31 | IE | Global Interrupt Enable |
+| 30:29 | Priv[1:0] | Privilege Mode |
+| 28:27 | FS[1:0] | Floating-point State |
+| 26:24 | RM[2:0] | Rounding Mode |
+| 23 | NV | Float Invalid Operation Flag |
+| 22 | DZ | Float Divide by Zero Flag |
+| 21 | OF | Float Overflow Flag |
+| 20 | UF | Float Underflow Flag |
+| 19 | NX | Float Inexact Flag |
+| 18:8 | Reserved | (Reserved) |
+| 7 | Z | Zero Flag |
+| 6 | C | Carry/Borrow Flag |
+| 5 | V | Overflow Flag |
+| 4 | N | Negative/Sign Flag |
+| 3:0 | Reserved | (Reserved) |
+
+---
 ## Instruction Formats
 
 ### R-Type — Register-Register Operations

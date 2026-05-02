@@ -74,33 +74,33 @@ module tb_cpu_core();
 
         // Pre-fill registers R2 and R3
         // We'll use force then release after a few cycles
-        // Physical R2 is bank0 index 2, R3 is bank0 index 3
-        force uut.rf.banks[0].bank_inst.bank[2].r.q = 10;
-        force uut.rf.banks[0].bank_inst.bank[3].r.q = 20;
+        // Physical R2 is index 2, R3 is index 3
+        force uut.rf.gp_regs[2].reg_inst.q = 10;
+        force uut.rf.gp_regs[3].reg_inst.q = 20;
 
         $display(".1 — CPU Core Integration Test (Sequential ALU)");
         $monitor("Time=%0t | PC=%h | Instr=%h | Stall=%b", 
                  $time, pc, instr_in, uut.stall_haz);
 
         #30;
-        release uut.rf.banks[0].bank_inst.bank[2].r.q;
-        release uut.rf.banks[0].bank_inst.bank[3].r.q;
+        release uut.rf.gp_regs[2].reg_inst.q;
+        release uut.rf.gp_regs[3].reg_inst.q;
 
         #300;
 
         $display("Final Register Verification:");
-        $display("R1 (exp 30): %d", uut.rf.banks[0].bank_inst.bank[1].r.q);
-        $display("R4 (exp 20): %d", uut.rf.banks[0].bank_inst.bank[4].r.q);
-        $display("R5 (exp 20): %d", uut.rf.banks[0].bank_inst.bank[5].r.q);
-        $display("R6 (exp 20): %d", uut.rf.banks[0].bank_inst.bank[6].r.q);
-        $display("R7 (exp 0):  %d", uut.rf.banks[0].bank_inst.bank[7].r.q);
-        $display("R8 (exp 30720): %d", uut.rf.banks[1].bank_inst.bank[0].r.q);
-        $display("R9 (exp 30): %d", uut.rf.banks[1].bank_inst.bank[1].r.q);
-        $display("R10 (exp 30):%d", uut.rf.banks[1].bank_inst.bank[2].r.q);
-        $display("R11 (exp 0): %d", uut.rf.banks[1].bank_inst.bank[3].r.q);
-        $display("R12 (exp 0): %d", uut.rf.banks[1].bank_inst.bank[4].r.q);
+        $display("R1 (exp 30): %d", uut.rf.gp_regs[1].reg_inst.q);
+        $display("R4 (exp 20): %d", uut.rf.gp_regs[4].reg_inst.q);
+        $display("R5 (exp 20): %d", uut.rf.gp_regs[5].reg_inst.q);
+        $display("R6 (exp 20): %d", uut.rf.gp_regs[6].reg_inst.q);
+        $display("R7 (exp 0):  %d", uut.rf.gp_regs[7].reg_inst.q);
+        $display("R8 (exp 30720): %d", uut.rf.gp_regs[8].reg_inst.q);
+        $display("R9 (exp 30): %d", uut.rf.gp_regs[9].reg_inst.q);
+        $display("R10 (exp 30):%d", uut.rf.gp_regs[10].reg_inst.q);
+        $display("R11 (exp 0): %d", uut.rf.gp_regs[11].reg_inst.q);
+        $display("R12 (exp 0): %d", uut.rf.gp_regs[12].reg_inst.q);
 
-        if (uut.rf.banks[1].bank_inst.bank[1].r.q == 30 && uut.rf.banks[1].bank_inst.bank[4].r.q == 0)
+        if (uut.rf.gp_regs[9].reg_inst.q == 30 && uut.rf.gp_regs[12].reg_inst.q == 0)
             $display("PASS: .1 Sequential ALU test successful!");
         else
             $display("FAIL: .1 Register mismatch.");

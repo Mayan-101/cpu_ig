@@ -10,8 +10,7 @@ module tb_alu_top;
     reg [5:0]  op;
     wire [31:0] result;
     wire done;
-    wire [3:0] int_flags;
-    wire [2:0] fp_flags;
+    wire [31:0] psw_out;
 
     alu_top dut (
         .clk(clk),
@@ -22,8 +21,7 @@ module tb_alu_top;
         .op(op),
         .result(result),
         .done(done),
-        .int_flags(int_flags),
-        .fp_flags(fp_flags)
+        .psw_out(psw_out)
     );
 
     always #5 clk = ~clk;

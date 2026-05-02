@@ -94,8 +94,7 @@ module ex_stage (
 
     wire [31:0] alu_result;
     wire alu_done;
-    wire [3:0] int_flags;
-    wire [2:0] fp_flags;
+    wire [31:0] psw_out;
 
     // Start multi-cycle only if it's a new valid instruction
     // We assume if it's multi_cycle, start goes high.
@@ -116,8 +115,7 @@ module ex_stage (
         .op(alu_top_op),
         .result(alu_result),
         .done(alu_done),
-        .int_flags(int_flags),
-        .fp_flags(fp_flags)
+        .psw_out(psw_out)
     );
 
     // Branch Target Calculator
@@ -148,7 +146,7 @@ module ex_stage (
             ex_mem_wb_src <= 0;
         end else if (!alu_stall) begin
             ex_mem_alu_result <= alu_result;
-            ex_mem_zero <= int_flags[2]; // Z flag
+            ex_mem_zero <= psw_out[7]; // Z flag
             ex_mem_wr_data <= valB;      // Data to store (forwarded rs2)
             ex_mem_rd_addr <= id_ex_rd_addr;
             ex_mem_mem_read <= id_ex_mem_read;

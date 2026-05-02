@@ -149,12 +149,22 @@ module cpu_top (
     end
 
     wire [31:0] alu_out;
-    wire [3:0] alu_flags;
+    wire [31:0] psw_out;
     wire alu_done;
     alu_top alu_inst (
         .clk(clk), .rst(rst), .start(1'b1), .a(alu_in_a), .b(alu_in_b), .op(alu_top_op),
-        .result(alu_out), .done(alu_done), .int_flags(alu_flags)
+        .result(alu_out), .done(alu_done), .psw_out(psw_out)
     );
+
+    // 32-bit PSW Register
+    reg [31:0] psw;
+    always @(posedge clk) begin
+        if (rst) begin
+            psw <= 32'd0;
+        end else if (alu_done) begin
+            psw <= psw_out;
+        end
+    end
 
     branch_target_calc btc (
         .pc(id_ex_pc_plus4), .imm32(id_ex_imm32), .valA(valA_fwd), .valB(valB_fwd),
@@ -164,7 +174,7 @@ module cpu_top (
 
     // EX/MEM Pipeline Register
     wire [76:0] ex_mem_in = {
-        alu_out, alu_flags[2], valB_fwd, id_ex_rd_addr, 
+        alu_out, psw_out[7], valB_fwd, id_ex_rd_addr, 
         id_ex_mem_read, id_ex_mem_write, id_ex_reg_write, id_ex_is_io, id_ex_wb_src
     };
     wire [76:0] ex_mem_out;
@@ -210,7 +220,7 @@ module cpu_top (
 
     //  Hazard Management and Core Units 
     register_file rf (
-        .clk(clk), .rst(rst), .bank_sel(2'b00),
+        .clk(clk), .rst(rst),
         .rs1_addr(rs1_addr_id), .rs2_addr(rs2_addr_id),
         .rd_addr(mem_wb_rd_addr), .wr_data(rf_wr_data), .we(mem_wb_reg_write),
         .rs1_data(rf_rs1_data), .rs2_data(rf_rs2_data)

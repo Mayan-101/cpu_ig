@@ -9,8 +9,7 @@ module alu_top (
     input  wire [5:0]  op,
     output reg  [31:0] result,
     output reg         done,
-    output reg  [3:0]  int_flags, // {N, Z, C, V}
-    output reg  [2:0]  fp_flags   // {of, uf, z}
+    output reg  [31:0] psw_out
 );
 
     // Int ALU
@@ -51,13 +50,15 @@ module alu_top (
         // default
         result = 32'd0;
         done = 1'b0;
-        int_flags = 4'd0;
-        fp_flags = 3'd0;
+        psw_out = 32'd0;
 
         if (op[5:4] == 2'b00) begin
             // Int ALU ops
             result = int_result;
-            int_flags = {int_N, int_Z, int_C, int_V};
+            psw_out[7] = int_Z;
+            psw_out[6] = int_C;
+            psw_out[5] = int_V;
+            psw_out[4] = int_N;
             if (start) done = 1'b1; // combinational
         end else if (op == 6'b010000) begin
             // MUL
@@ -67,20 +68,27 @@ module alu_top (
             // DIV
             result = div_quot;
             done = div_done;
+            if (div_zero) psw_out[22] = 1'b1;
         end else if (op == 6'b100000) begin
             // FADD
             result = fadd_res;
-            fp_flags = {fadd_of, fadd_uf, (fadd_res == 32'b0)};
+            psw_out[21] = fadd_of; // OF
+            psw_out[20] = fadd_uf; // UF
+            psw_out[7]  = (fadd_res == 32'b0); // Z
             if (start) done = 1'b1;
         end else if (op == 6'b100001) begin
             // FSUB
             result = fsub_res;
-            fp_flags = {fsub_of, fsub_uf, (fsub_res == 32'b0)};
+            psw_out[21] = fsub_of; // OF
+            psw_out[20] = fsub_uf; // UF
+            psw_out[7]  = (fsub_res == 32'b0); // Z
             if (start) done = 1'b1;
         end else if (op == 6'b100010) begin
             // FMUL
             result = fmul_res;
-            fp_flags = {fmul_of, fmul_uf, (fmul_res == 32'b0)};
+            psw_out[21] = fmul_of; // OF
+            psw_out[20] = fmul_uf; // UF
+            psw_out[7]  = (fmul_res == 32'b0); // Z
             if (start) done = 1'b1;
         end
     end
