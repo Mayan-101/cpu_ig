@@ -3,7 +3,7 @@
 module alu_int (
     input  wire [31:0] a,
     input  wire [31:0] b,
-    input  wire [4:0]  alu_op,
+    input  wire [5:0]  alu_op,
     output reg  [31:0] result,
     output wire        N,
     output wire        Z,
@@ -11,43 +11,34 @@ module alu_int (
     output reg         V
 );
 
-    // ALU Opcodes
-    localparam OP_ADD  = 5'b00000;
-    localparam OP_SUB  = 5'b00001;
-    localparam OP_AND  = 5'b00010;
-    localparam OP_OR   = 5'b00011;
-    localparam OP_XOR  = 5'b00100;
-    localparam OP_NOR  = 5'b00101;
-    localparam OP_LSL  = 5'b00110;
-    localparam OP_LSR  = 5'b00111;
-    localparam OP_ASR  = 5'b01000;
-    localparam OP_ROR  = 5'b01001;
-    localparam OP_SLT  = 5'b01010;
-    localparam OP_SLTU = 5'b01011;
+    // ALU Opcodes (Architecture Synchronized)
+    localparam OP_ADD  = 6'h01;
+    localparam OP_SUB  = 6'h02;
+    localparam OP_AND  = 6'h03;
+    localparam OP_OR   = 6'h04;
+    localparam OP_XOR  = 6'h05;
+    localparam OP_NOT  = 6'h06;
+    localparam OP_LSL  = 6'h07;
+    localparam OP_LSR  = 6'h08;
+    localparam OP_ASR  = 6'h09;
+    localparam OP_ROR  = 6'h0A;
 
     //  Module Outputs 
-    wire [31:0] add_res, sub_res, bitwise_res, shift_res;
-    wire        add_cout, add_ovf;
-    wire        sub_borrow, sub_ovf;
+    wire [31:0] add_res, sub_res;
+    wire [31:0] bitwise_res, shift_res;
+    wire        add_cout;
+    wire        add_ovf;
+    wire        sub_borrow;
+    wire        sub_ovf;
     wire        shift_cout;
     wire        cmp_eq, cmp_lt_s, cmp_gt_s, cmp_lt_u, cmp_gt_u;
 
-    //  Instances 
     cla_32bit adder (
-        .a(a),
-        .b(b),
-        .cin(1'b0),
-        .sum(add_res),
-        .cout(add_cout),
-        .overflow(add_ovf)
+        .a(a), .b(b), .cin(1'b0), .sum(add_res), .cout(add_cout), .overflow(add_ovf)
     );
 
     sub_32bit subtractor (
-        .a(a),
-        .b(b),
-        .diff(sub_res),
-        .borrow(sub_borrow),
-        .overflow(sub_ovf)
+        .a(a), .b(b), .diff(sub_res), .borrow(sub_borrow), .overflow(sub_ovf)
     );
 
     // Bitwise unit op mapping: 000=AND, 001=OR, 010=XOR, 011=NOT, 100=NOR
@@ -57,7 +48,6 @@ module alu_int (
             OP_AND: bw_op = 3'b000;
             OP_OR:  bw_op = 3'b001;
             OP_XOR: bw_op = 3'b010;
-            OP_NOR: bw_op = 3'b100;
             default: bw_op = 3'b000;
         endcase
     end
@@ -117,36 +107,51 @@ module alu_int (
         V = 1'b0;
 
         case (alu_op)
-            OP_ADD: begin
+            6'h01, 6'h10, 6'h1B, 6'h20, 6'h21, 6'h22, 6'h23, 6'h24, 6'h25: begin // ADD, ADDI, ADDC, Load/Store Addresses
                 result = add_res;
                 C = add_cout;
                 V = add_ovf;
             end
-            OP_SUB: begin
+            6'h02, 6'h11, 6'h0F, 6'h18: begin // SUB, SUBI, CMP, CMPI
                 result = sub_res;
-                C = sub_borrow; // For borrow
+                C = sub_borrow;
                 V = sub_ovf;
             end
-            OP_AND, OP_OR, OP_XOR, OP_NOR: begin
-                result = bitwise_res;
+            6'h03, 6'h12: begin // AND, ANDI
+                result = a & b;
             end
-            OP_LSL, OP_LSR, OP_ASR, OP_ROR: begin
+            6'h04, 6'h13: begin // OR, ORI
+                result = a | b;
+            end
+            6'h05, 6'h14: begin // XOR, XORI
+                result = a ^ b;
+            end
+            6'h06: begin // NOT
+                result = ~a;
+            end
+            6'h07, 6'h15: begin // SLL, SLLI
                 result = shift_res;
                 C = shift_cout;
             end
-            OP_SLT: begin
-                result = {31'd0, cmp_lt_s};
-                C = sub_borrow;
-                V = sub_ovf;
+            6'h08, 6'h16: begin // SRL, SRLI
+                result = shift_res;
+                C = shift_cout;
             end
-            OP_SLTU: begin
-                result = {31'd0, cmp_lt_u};
-                C = sub_borrow;
+            6'h09, 6'h17: begin // SRA, SRAI
+                result = shift_res;
+            end
+            6'h0A: begin // ROR
+                result = shift_res;
+                C = shift_cout;
+            end
+            6'h19, 6'h1A: begin // MOVI, LUI
+                result = b;
             end
             default: begin
                 result = 32'd0;
             end
         endcase
+        
     end
 
     // N and Z flags based on final result

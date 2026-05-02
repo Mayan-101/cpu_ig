@@ -30,6 +30,7 @@ module register_file (
         end
     endgenerate
 
+
     // ACC and B registers
     wire [31:0] acc_q;
     wire [31:0] b_q;

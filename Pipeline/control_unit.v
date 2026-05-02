@@ -17,7 +17,8 @@ module control_unit (
     output reg        is_io,
     output reg  [1:0] wb_src,   // 0: ALU, 1: MEM, 2: PC+4 (ACC), 3: IO
     output reg        alu_src,  // 0: RS2, 1: IMM
-    output reg  [1:0] ext_mode  // 0: SIGN, 1: ZERO, 2: JUMP, 3: LUI
+    output reg  [1:0] ext_mode, // 0: SIGN, 1: ZERO, 2: JUMP, 3: LUI
+    output reg        is_reti
 );
 
     always @(*) begin
@@ -33,6 +34,7 @@ module control_unit (
         wb_src    = 2'b00;
         alu_src   = 0;
         ext_mode  = 2'b00; // Default SIGN extension
+        is_reti   = 0;
 
         case (opcode[5:4])
             //  Group 1: R-type Instructions (0x00 - 0x0F) 
@@ -79,6 +81,7 @@ module control_unit (
                     if (opcode >= 6'h38 && opcode <= 6'h3C) begin // Jump / Call
                         jump = 1;
                         if (opcode == 6'h38 || opcode == 6'h3A) ext_mode = 2'b10; // JUMP mode
+                        if (opcode == 6'h3C) is_reti = 1;
                     end else if (opcode == 6'h3D || opcode == 6'h3E) begin // I/O
                         is_io    = 1;
                         alu_src  = 1;
@@ -95,6 +98,7 @@ module control_unit (
                     end
                 end
             end
+            default: ;
         endcase
     end
 
