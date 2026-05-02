@@ -1,10 +1,10 @@
-# RISC CPU Documentation
+# It's a CPU, i guess... Bit RISCy 😭 
 
-Welcome to the documentation for the 5-stage pipelined RISC CPU.
+I hope you will read stuff below
 
 ## Contents
 
-- [**Getting Started**](docs/GettingStarted.md): Environment setup and first run.
+- [**Getting Started**](GettingStarted.md): Environment setup and first run.
 - [**ISA Reference**](docs/ISA.md): Full instruction set and register documentation.
 - [**Memory Map**](docs/MemoryMap.md): System address layout.
 - [**Usage & Testing**](docs/Usage.md): How to write and run programs.
