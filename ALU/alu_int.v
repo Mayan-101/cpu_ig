@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+`include "defines.vh"
 
 module alu_int (
     input  wire [31:0] a,
@@ -10,18 +10,6 @@ module alu_int (
     output reg         C,
     output reg         V
 );
-
-    // ALU Opcodes (Architecture Synchronized)
-    localparam OP_ADD  = 6'h01;
-    localparam OP_SUB  = 6'h02;
-    localparam OP_AND  = 6'h03;
-    localparam OP_OR   = 6'h04;
-    localparam OP_XOR  = 6'h05;
-    localparam OP_NOT  = 6'h06;
-    localparam OP_LSL  = 6'h07;
-    localparam OP_LSR  = 6'h08;
-    localparam OP_ASR  = 6'h09;
-    localparam OP_ROR  = 6'h0A;
 
     //  Module Outputs 
     wire [31:0] add_res, sub_res;
@@ -45,10 +33,11 @@ module alu_int (
     reg [2:0] bw_op;
     always @(*) begin
         case (alu_op)
-            OP_AND: bw_op = 3'b000;
-            OP_OR:  bw_op = 3'b001;
-            OP_XOR: bw_op = 3'b010;
-            default: bw_op = 3'b000;
+            `OP_AND, `OP_ANDI: bw_op = 3'b000;
+            `OP_OR,  `OP_ORI:  bw_op = 3'b001;
+            `OP_XOR, `OP_XORI: bw_op = 3'b010;
+            `OP_NOT:           bw_op = 3'b011;
+            default:           bw_op = 3'b000;
         endcase
     end
 
@@ -63,16 +52,14 @@ module alu_int (
     reg [1:0] shift_type;
     always @(*) begin
         case (alu_op)
-            OP_LSL: shift_type = 2'b00;
-            OP_LSR: shift_type = 2'b01;
-            OP_ASR: shift_type = 2'b10;
-            OP_ROR: shift_type = 2'b11;
-            default: shift_type = 2'b00;
+            `OP_LSL, `OP_LSLI: shift_type = 2'b00;
+            `OP_LSR, `OP_LSRI: shift_type = 2'b01;
+            `OP_ASR, `OP_ASRI: shift_type = 2'b10;
+            `OP_ROR:           shift_type = 2'b11;
+            default:           shift_type = 2'b00;
         endcase
     end
 
-    // Assuming b[4:0] is used for shamt if a is shifted by b, or a is shift amount? 
-    // Wait, usually rs1 (a) is shifted by rs2 (b). So a is input, b[4:0] is shamt.
     barrel_shifter shifter (
         .a(a),
         .shamt(b[4:0]),
@@ -107,51 +94,33 @@ module alu_int (
         V = 1'b0;
 
         case (alu_op)
-            6'h01, 6'h10, 6'h1B, 6'h20, 6'h21, 6'h22, 6'h23, 6'h24, 6'h25: begin // ADD, ADDI, ADDC, Load/Store Addresses
+            `OP_ADD, `OP_ADDI, `OP_ADDC, `OP_LW, `OP_SW, `OP_LH, `OP_SH, `OP_LB, `OP_SB, `OP_LBU, `OP_LHU: begin
                 result = add_res;
                 C = add_cout;
                 V = add_ovf;
             end
-            6'h02, 6'h11, 6'h0F, 6'h18: begin // SUB, SUBI, CMP, CMPI
+            `OP_SUB, `OP_SUBI, `OP_CMP, `OP_CMPI: begin
                 result = sub_res;
                 C = sub_borrow;
                 V = sub_ovf;
             end
-            6'h03, 6'h12: begin // AND, ANDI
-                result = a & b;
+            `OP_AND, `OP_ANDI, `OP_OR, `OP_ORI, `OP_XOR, `OP_XORI, `OP_NOT: begin
+                result = bitwise_res;
             end
-            6'h04, 6'h13: begin // OR, ORI
-                result = a | b;
-            end
-            6'h05, 6'h14: begin // XOR, XORI
-                result = a ^ b;
-            end
-            6'h06: begin // NOT
-                result = ~a;
-            end
-            6'h07, 6'h15: begin // SLL, SLLI
+            `OP_LSL, `OP_LSLI, `OP_LSR, `OP_LSRI, `OP_ROR: begin
                 result = shift_res;
                 C = shift_cout;
             end
-            6'h08, 6'h16: begin // SRL, SRLI
-                result = shift_res;
-                C = shift_cout;
-            end
-            6'h09, 6'h17: begin // SRA, SRAI
+            `OP_ASR, `OP_ASRI: begin
                 result = shift_res;
             end
-            6'h0A: begin // ROR
-                result = shift_res;
-                C = shift_cout;
-            end
-            6'h19, 6'h1A: begin // MOVI, LUI
+            `OP_MOVI, `OP_LUI: begin
                 result = b;
             end
             default: begin
                 result = 32'd0;
             end
         endcase
-        
     end
 
     // N and Z flags based on final result

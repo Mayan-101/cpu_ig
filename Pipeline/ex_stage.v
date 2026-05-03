@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+`include "defines.vh"
 
 module ex_stage (
     input  wire clk,
@@ -6,6 +6,7 @@ module ex_stage (
     
     // ID/EX Pipeline Register Inputs
     input  wire [5:0]  id_ex_alu_op,
+    input  wire [7:0]  id_ex_funct,
     input  wire id_ex_mem_read,
     input  wire id_ex_mem_write,
     input  wire id_ex_reg_write,
@@ -26,11 +27,12 @@ module ex_stage (
     // Forwarding Inputs
     input  wire [31:0] fwd_ex_mem_data,
     input  wire [31:0] fwd_mem_wb_data,
-    input  wire [1:0]  forwardA, // 00: ID/EX, 10: EX/MEM, 01: MEM/WB
+    input  wire [1:0]  forwardA,
     input  wire [1:0]  forwardB,
     
     // Stall/Flush Control
-    output wire alu_stall, // Asserted if multi-cycle ALU is not done
+    input  wire stall_in,
+    output wire alu_stall,
     
     // EX/MEM Pipeline Register Outputs
     output reg  [31:0] ex_mem_alu_result,
@@ -43,8 +45,9 @@ module ex_stage (
     output reg  ex_mem_reg_write,
     output reg  ex_mem_is_io,
     output reg  [1:0] ex_mem_wb_src,
+    output reg         ex_mem_is_halt,
     
-    // Branch Outcome (to Branch Hazard Handler)
+    // Branch Outcome
     output wire        take_branch,
     output wire [31:0] branch_target
 );
@@ -60,35 +63,23 @@ module ex_stage (
     wire [31:0] alu_in_a = valA;
     wire [31:0] alu_in_b = id_ex_alu_src ? id_ex_imm32 : valB;
 
-    // Map ID/EX ALU op (Instruction Opcode) to ALU Top Opcode
     reg [5:0] alu_top_op;
-    wire is_mul = (id_ex_alu_op == 6'h0B);
-    wire is_div = (id_ex_alu_op == 6'h0D);
+    wire is_mul = (id_ex_alu_op == `OP_MUL);
+    wire is_div = (id_ex_alu_op == `OP_DIV);
     wire is_multi_cycle = is_mul || is_div || id_ex_is_float; 
 
     always @(*) begin
         if (id_ex_is_float) begin
-            if (id_ex_alu_op == 6'h28) alu_top_op = 6'b100000; // FADD
-            else if (id_ex_alu_op == 6'h29) alu_top_op = 6'b100001; // FSUB
-            else if (id_ex_alu_op == 6'h2A) alu_top_op = 6'b100010; // FMUL
-            else alu_top_op = 6'b100000;
+            if (id_ex_alu_op == `OP_FADD) alu_top_op = `OP_FADD; 
+            else if (id_ex_alu_op == `OP_FSUB) alu_top_op = `OP_FSUB;
+            else if (id_ex_alu_op == `OP_FMUL) alu_top_op = `OP_FMUL;
+            else alu_top_op = `OP_FADD;
         end else if (is_mul) begin
-            alu_top_op = 6'b010000;
+            alu_top_op = `OP_MUL;
         end else if (is_div) begin
-            alu_top_op = 6'b010001;
+            alu_top_op = `OP_DIV;
         end else begin
-            // Translate CPU Int Opcode to ALU Int Opcode
-            // I-type ALU (0x10-0x1B) uses the same arithmetic as R-type (0x00-0x0B).
-            // We isolate the lower 4 bits.
-            case (id_ex_alu_op[3:0])
-                4'h1: alu_top_op = {1'b0, 5'b00000}; // ADD / ADDI
-                4'h2: alu_top_op = {1'b0, 5'b00001}; // SUB / SUBI
-                4'h3: alu_top_op = {1'b0, 5'b00010}; // AND / ANDI
-                4'h4: alu_top_op = {1'b0, 5'b00011}; // OR  / ORI
-                4'h5: alu_top_op = {1'b0, 5'b00100}; // XOR / XORI
-                // We'll map others as needed for M9.6, the test only tests ADD.
-                default: alu_top_op = {1'b0, 5'b00000}; // Default ADD
-            endcase
+            alu_top_op = id_ex_alu_op;
         end
     end
 
@@ -96,8 +87,6 @@ module ex_stage (
     wire alu_done;
     wire [31:0] psw_out;
 
-    // Start multi-cycle only if it's a new valid instruction
-    // We assume if it's multi_cycle, start goes high.
     reg alu_start_reg;
     always @(posedge clk) begin
         if (rst) alu_start_reg <= 0;
@@ -107,28 +96,15 @@ module ex_stage (
     wire start_alu = is_multi_cycle && !alu_start_reg;
 
     alu_top alu_inst (
-        .clk(clk),
-        .rst(rst),
-        .start(start_alu),
-        .a(alu_in_a),
-        .b(alu_in_b),
-        .op(alu_top_op),
-        .result(alu_result),
-        .done(alu_done),
-        .psw_out(psw_out)
+        .clk(clk), .rst(rst), .start(start_alu),
+        .a(alu_in_a), .b(alu_in_b), .op(alu_top_op),
+        .result(alu_result), .done(alu_done), .psw_out(psw_out)
     );
 
-    // Branch Target Calculator
     branch_target_calc btc (
-        .pc(id_ex_pc_plus4),
-        .imm32(id_ex_imm32),
-        .valA(valA),
-        .valB(valB),
-        .opcode(id_ex_alu_op),
-        .branch(id_ex_branch),
-        .jump(id_ex_jump),
-        .target(branch_target),
-        .take_branch(take_branch)
+        .pc(id_ex_pc_plus4), .imm32(id_ex_imm32), .valA(valA), .valB(valB),
+        .opcode(id_ex_alu_op), .branch(id_ex_branch), .jump(id_ex_jump),
+        .target(branch_target), .take_branch(take_branch)
     );
 
     assign alu_stall = is_multi_cycle && !alu_done;
@@ -144,16 +120,19 @@ module ex_stage (
             ex_mem_reg_write <= 0;
             ex_mem_is_io <= 0;
             ex_mem_wb_src <= 0;
-        end else if (!alu_stall) begin
+            ex_mem_is_halt <= 0;
+        end else if (!(alu_stall || stall_in)) begin
             ex_mem_alu_result <= alu_result;
-            ex_mem_zero <= psw_out[7]; // Z flag
-            ex_mem_wr_data <= valB;      // Data to store (forwarded rs2)
+            ex_mem_zero <= psw_out[7];
+            ex_mem_wr_data <= valB;
             ex_mem_rd_addr <= id_ex_rd_addr;
             ex_mem_mem_read <= id_ex_mem_read;
             ex_mem_mem_write <= id_ex_mem_write;
             ex_mem_reg_write <= id_ex_reg_write;
             ex_mem_is_io <= id_ex_is_io;
             ex_mem_wb_src <= id_ex_wb_src;
+            // HALT detection based on opcode and funct
+            ex_mem_is_halt <= (id_ex_alu_op == `OP_MISC && id_ex_funct == `FUNCT_HALT);
         end
     end
 

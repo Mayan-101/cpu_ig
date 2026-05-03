@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+`include "defines.vh"
 
 module cpu_top (
     input  wire        clk,
@@ -25,253 +25,194 @@ module cpu_top (
     output wire        halt_cpu
 );
 
-    // Pipeline Registers
+    // Internal Control / Status Signals
     reg [31:0] psw;
     reg [31:0] mtvec, mepc, mstatus;
-    reg        int_taken_reg;
-
+    
     wire [31:0] branch_target;
     wire        take_branch;
     wire [1:0]  pc_src;
     wire        flush_IF, flush_ID;
     wire        stall_haz, nop_inject_haz;
-    wire        dc_stall;
+    wire        stall_alu;
 
     //  [1] Fetch (IF) Stage 
-    wire [31:0] pc_next;
-    wire [31:0] pc_plus4;
     reg  [31:0] pc_reg;
+    wire [31:0] pc_plus4 = pc_reg + 4;
+    wire [31:0] pc_next = (pc_src == 2'b01) ? branch_target : 
+                          (pc_src == 2'b10) ? mtvec : pc_plus4;
 
-    assign pc_plus4 = pc_reg + 4;
-    assign pc_next = (pc_src == 2'b01) ? branch_target : 
-                     (pc_src == 2'b10) ? mtvec : pc_plus4;
+    wire cache_stall; // Forward declaration
 
+    // Halt Tracking Shift Register (Bypasses missing internal stage routing)
+    reg halt_pipe_1, halt_pipe_2, halt_pipe_3;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            halt_pipe_1 <= 1'b0;
+            halt_pipe_2 <= 1'b0;
+            halt_pipe_3 <= 1'b0;
+        end else if (!pipe_stall) begin
+            halt_pipe_1 <= is_halt_id && !flush_ID;
+            halt_pipe_2 <= halt_pipe_1 && !flush_ID; // Propagation also needs to be flushable
+            halt_pipe_3 <= halt_pipe_2;
+        end
+    end
+
+    wire pc_stall = (stall_haz == 1'b1) || (stall_alu == 1'b1) || (cache_stall == 1'b1) || 
+                    (halt_latch == 1'b1) || (is_halt_id && !flush_ID);
+    wire pipe_stall = (stall_alu == 1'b1) || (cache_stall == 1'b1) || (halt_latch == 1'b1);
+    
     always @(posedge clk or posedge rst) begin
         if (rst) pc_reg <= 32'h0000_0000;
-        else if (!(stall_haz || stall_alu)) pc_reg <= pc_next;
+        else if (!pc_stall) begin
+            pc_reg <= pc_next;
+            
+        end
     end
     assign pc = pc_reg;
 
-
-    // IF/ID Pipeline Register
-    wire [63:0] if_id_in = {pc_plus4, instr_in};
-    wire [63:0] if_id_out;
-    pipeline_reg #(.WIDTH(64)) if_id_reg_inst (
-        .clk(clk), .rst(rst), .stall(stall_haz || stall_alu), .flush(flush_IF),
-        .data_in(if_id_in), .data_out(if_id_out)
+    wire [31:0] if_id_instr, if_id_pc_plus4;
+    if_stage if_inst (
+        .clk(clk), .rst(rst),
+        .pc(pc_reg),
+        .icache_data(instr_in), .icache_hit(icache_hit),
+        .flush(flush_IF),
+        .if_id_instr(if_id_instr), .if_id_pc_plus4(if_id_pc_plus4),
+        .stall_in(pipe_stall || stall_haz),
+        .stall_out()
     );
-    
-    wire [31:0] if_id_pc_plus4 = if_id_out[63:32];
-    wire [31:0] if_id_instr    = if_id_out[31:0];
 
     //  [2] Decode (ID) Stage 
-    wire [5:0]  opcode_id = if_id_instr[31:26];
-    wire [5:0]  rd_id     = if_id_instr[25:20];
-    wire [5:0]  rs1_id    = if_id_instr[19:14];
-    wire [5:0]  rs2_id    = if_id_instr[13:8];
-    
-    wire [1:0] ext_mode_id;
-    wire [31:0] imm32_id;
-    imm_extender ie (
-        .instr_bits(if_id_instr[25:0]),
-        .ext_mode(ext_mode_id),
-        .imm32(imm32_id)
-    );
-
-    wire [5:0]  rs1_addr_id = rs1_id;
-    wire [5:0]  rs2_addr_id = (branch_id || mem_write_id) ? rd_id : rs2_id;
     wire [31:0] rf_rs1_data, rf_rs2_data;
+    wire [5:0]  rs1_addr_id, rs2_addr_id;
 
-    // Control Unit
-    wire [5:0]  alu_op_id;
-    wire        alu_src_id, reg_write_id, mem_read_id, mem_write_id, branch_id, jump_id, is_halt_id, is_io_id, is_reti_id;
-    wire [1:0]  wb_src_id;
+    wire [5:0]  id_ex_alu_op;
+    wire        id_ex_mem_read, id_ex_mem_write, id_ex_reg_write, id_ex_branch, id_ex_jump;
+    wire        id_ex_is_float, id_ex_is_io, id_ex_alu_src;
+    wire [1:0]  id_ex_wb_src;
+    wire [31:0] id_ex_rs1_data, id_ex_rs2_data, id_ex_imm32, id_ex_pc_plus4;
+    wire [5:0]  id_ex_rd_addr, id_ex_rs1_addr, id_ex_rs2_addr;
+    wire [7:0]  id_ex_funct;
+    wire        id_ex_is_reti;
 
-    control_unit cu (
-        .opcode(opcode_id), .funct(if_id_instr[7:0]),
-        .alu_op(alu_op_id), .alu_src(alu_src_id), .reg_write(reg_write_id),
-        .mem_read(mem_read_id), .mem_write(mem_write_id),
-        .branch(branch_id), .jump(jump_id), .is_io(is_io_id),
-        .wb_src(wb_src_id), .ext_mode(ext_mode_id),
-        .is_reti(is_reti_id)
+    id_stage id_inst (
+        .clk(clk), .rst(rst), .flush(flush_ID || nop_inject_haz), .stall(pipe_stall),
+        .if_id_instr(if_id_instr), .if_id_pc_plus4(if_id_pc_plus4),
+        .regfile_rs1(rf_rs1_data), .regfile_rs2(rf_rs2_data),
+        .rs1_addr(rs1_addr_id), .rs2_addr(rs2_addr_id),
+        .id_ex_alu_op(id_ex_alu_op), .id_ex_mem_read(id_ex_mem_read), .id_ex_mem_write(id_ex_mem_write),
+        .id_ex_reg_write(id_ex_reg_write), .id_ex_branch(id_ex_branch), .id_ex_jump(id_ex_jump),
+        .id_ex_is_float(id_ex_is_float), .id_ex_is_io(id_ex_is_io), .id_ex_wb_src(id_ex_wb_src),
+        .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
+        .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_rs1_addr(id_ex_rs1_addr),
+        .id_ex_rs2_addr(id_ex_rs2_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
+        .id_ex_funct(id_ex_funct), .id_ex_is_reti(id_ex_is_reti)
     );
-    assign is_halt_id = (opcode_id == 6'h3F && if_id_instr[7:0] == 8'h00);
 
-    // Interrupt handling
-    wire int_taken = irq && psw[31];
-
-    // ID/EX Pipeline Bits (Structural Guard)
-    localparam IDX_PC_P4_W = 32, IDX_RS1_D_W = 32, IDX_RS2_D_W = 32, IDX_IMM_W = 32;
-    localparam IDX_RS1_A_W = 6,  IDX_RS2_A_W = 6,  IDX_RD_A_W  = 6,  IDX_OP_W  = 6;
-    localparam IDX_CTRL_W  = 17; // Sum of all 1-bit and 2-bit flags below
+    wire int_taken = (irq == 1'b1) && (psw[31] == 1'b1);
+    wire is_halt_id = (if_id_instr[31:26] == `OP_MISC && if_id_instr[7:0] == `FUNCT_HALT);
     
-    // Total Width = 32*4 + 6*3 + 6 + 17 = 128 + 18 + 6 + 17 = 169? 
-    // Wait, let's recount based on the actual packing in line 103:
-    // pc_p4(32), rs1_d(32), rs2_d(32), imm(32), rs1_a(6), rs2_a(6), rd_a(6), 
-    // alu_op(6), alu_src(1), mem_r(1), mem_w(1), reg_w(1), branch(1), jump(1), is_io(1), wb_src(2),
-    // halt(1), reti(1), funct(8)
-    // 32+32+32+32+6+6+6 + 6+1+1+1+1+1+1+1+2 + 1+1+8 = 171 bits.
-
-    localparam ID_EX_WIDTH = 171;
-    wire [ID_EX_WIDTH-1:0] id_ex_in = {
-        if_id_pc_plus4, rf_rs1_data, rf_rs2_data, imm32_id, 
-        rs1_addr_id, rs2_addr_id, rd_id, 
-        alu_op_id, alu_src_id, mem_read_id, mem_write_id, reg_write_id, 
-        branch_id, jump_id, is_io_id, wb_src_id,
-        is_halt_id, is_reti_id, if_id_instr[7:0]
-    };
-    wire [ID_EX_WIDTH-1:0] id_ex_out;
-    pipeline_reg #(.WIDTH(ID_EX_WIDTH)) id_ex_reg_inst (
-        .clk(clk), .rst(rst), .stall(stall_alu), .flush(flush_ID || nop_inject_haz),
-        .data_in(id_ex_in), .data_out(id_ex_out)
-    );
-
-    // Unpack ID/EX signals using fixed offsets for safety
-    wire [31:0] id_ex_pc_plus4     = id_ex_out[170:139];
-    wire [31:0] id_ex_rs1_data     = id_ex_out[138:107];
-    wire [31:0] id_ex_rs2_data     = id_ex_out[106:75];
-    wire [31:0] id_ex_imm32        = id_ex_out[74:43];
-    wire [5:0]  id_ex_rs1_addr     = id_ex_out[42:37];
-    wire [5:0]  id_ex_rs2_addr     = id_ex_out[36:31];
-    wire [5:0]  id_ex_rd_addr      = id_ex_out[30:25];
-    wire [5:0]  id_ex_alu_op       = id_ex_out[24:19];
-    wire        id_ex_alu_src      = id_ex_out[18];
-    wire        id_ex_mem_read     = id_ex_out[17];
-    wire        id_ex_mem_write    = id_ex_out[16];
-    wire        id_ex_reg_write    = id_ex_out[15];
-    wire        id_ex_branch       = id_ex_out[14];
-    wire        id_ex_jump         = id_ex_out[13];
-    wire        id_ex_is_io        = id_ex_out[12];
-    wire [1:0]  id_ex_wb_src       = id_ex_out[11:10];
-    wire        id_ex_is_halt      = id_ex_out[9];
-    wire        id_ex_is_reti      = id_ex_out[8];
-    wire [7:0]  id_ex_funct        = id_ex_out[7:0];
 
     //  [3] Execute (EX) Stage 
     wire [1:0] forwardA, forwardB;
-    wire [31:0] ex_mem_alu_result, rf_wr_data;
-    wire [5:0] mem_wb_rd_addr;
-    wire mem_wb_reg_write;
+    wire [31:0] ex_mem_alu_result, ex_mem_wr_data;
+    wire [5:0]  ex_mem_rd_addr;
+    wire ex_mem_zero, ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write, ex_mem_is_io;
+    wire [1:0] ex_mem_wb_src;
+    wire [31:0] rf_wr_data; 
+    wire ex_mem_is_halt; // May be floating depending on ex_stage.v
 
-    // Forwarding logic for ALU operands
-    wire [31:0] valA_fwd = (forwardA == 2'b10) ? ex_mem_alu_result : 
-                           (forwardA == 2'b01) ? rf_wr_data : id_ex_rs1_data;
-    wire [31:0] valB_fwd = (forwardB == 2'b10) ? ex_mem_alu_result :
-                           (forwardB == 2'b01) ? rf_wr_data : id_ex_rs2_data;
-
-    wire [31:0] alu_in_a = valA_fwd;
-    wire [31:0] alu_in_b = id_ex_alu_src ? id_ex_imm32 : valB_fwd;
-
-    wire [31:0] alu_out;
-    wire [31:0] psw_out;
-    wire alu_done;
-    alu_top alu_inst (
-        .clk(clk), .rst(rst), .start(1'b1), .a(alu_in_a), .b(alu_in_b), .op(id_ex_alu_op),
-        .result(alu_out), .done(alu_done), .psw_out(psw_out)
+    ex_stage ex_inst (
+        .clk(clk), .rst(rst),
+        .id_ex_alu_op(id_ex_alu_op), .id_ex_mem_read(id_ex_mem_read), .id_ex_mem_write(id_ex_mem_write),
+        .id_ex_reg_write(id_ex_reg_write), .id_ex_branch(id_ex_branch), .id_ex_jump(id_ex_jump),
+        .id_ex_is_float(id_ex_is_float), .id_ex_is_io(id_ex_is_io), .id_ex_wb_src(id_ex_wb_src),
+        .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
+        .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
+        .fwd_ex_mem_data(ex_mem_mem_read ? dmem_rd_data : (ex_mem_is_io ? io_data_in : ex_mem_alu_result)), .fwd_mem_wb_data(rf_wr_data),
+        .forwardA(forwardA), .forwardB(forwardB),
+        .stall_in(cache_stall),
+        .alu_stall(stall_alu),
+        .ex_mem_alu_result(ex_mem_alu_result), .ex_mem_zero(ex_mem_zero),
+        .ex_mem_wr_data(ex_mem_wr_data), .ex_mem_rd_addr(ex_mem_rd_addr),
+        .ex_mem_mem_read(ex_mem_mem_read), .ex_mem_mem_write(ex_mem_mem_write),
+        .ex_mem_reg_write(ex_mem_reg_write), .ex_mem_is_io(ex_mem_is_io), .ex_mem_wb_src(ex_mem_wb_src),
+        .ex_mem_is_halt(ex_mem_is_halt),
+        .take_branch(take_branch), .branch_target(branch_target)
     );
 
-    // PSW and Context Logic
-    always @(posedge clk) begin
+    always @(posedge clk or posedge rst) begin
         if (rst) begin
             psw <= 32'd0;
-            int_taken_reg <= 1'b0;
             mtvec   <= 32'h0000_0000;
             mepc    <= 32'h0000_0000;
             mstatus <= 32'h0000_0000;
-        end else begin
+        end else if (!cache_stall) begin
             if (dmem_we) begin
                 if (dmem_addr == 32'h8000_0000) mtvec   <= dmem_wr_data;
                 if (dmem_addr == 32'h8000_0004) mepc    <= dmem_wr_data;
                 if (dmem_addr == 32'h8000_0008) mstatus <= dmem_wr_data;
             end
-
-            if (id_ex_alu_op == 6'h3F) begin
-                if (id_ex_funct == 8'h08) psw[31] <= 1'b1;
-                if (id_ex_funct == 8'h09) psw[31] <= 1'b0;
+            if (id_ex_alu_op == `OP_MISC) begin
+                if (id_ex_funct == `FUNCT_EI) psw[31] <= 1'b1;
+                if (id_ex_funct == `FUNCT_DI) psw[31] <= 1'b0;
             end
-
             if (int_taken) begin
-                mepc <= pc; 
-                mstatus <= psw;
-                psw[31] <= 1'b0; 
-                int_taken_reg <= 1'b1;
-            end else if (id_ex_is_reti) begin
-                psw <= mstatus;
+                mepc <= pc; mstatus <= psw; psw[31] <= 1'b0; 
             end
         end
     end
 
-    branch_target_calc btc (
-        .pc(id_ex_pc_plus4), .imm32(id_ex_imm32), .valA(valA_fwd), .valB(valB_fwd),
-        .opcode(id_ex_alu_op), .branch(id_ex_branch), .jump(id_ex_jump),
-        .target(branch_target), .take_branch(take_branch)
-    );
-
-    // EX/MEM Pipeline Bits (Structural Guard)
-    localparam EX_MEM_WIDTH = 78;
-    wire [EX_MEM_WIDTH-1:0] ex_mem_in = {
-        alu_out, psw_out[7], valB_fwd, id_ex_rd_addr, 
-        id_ex_mem_read, id_ex_mem_write, id_ex_reg_write, id_ex_is_io, id_ex_wb_src,
-        id_ex_is_halt
-    };
-    wire [EX_MEM_WIDTH-1:0] ex_mem_out;
-    pipeline_reg #(.WIDTH(EX_MEM_WIDTH)) ex_mem_reg_inst (
-        .clk(clk), .rst(rst), .stall(stall_alu), .flush(1'b0),
-        .data_in(ex_mem_in), .data_out(ex_mem_out)
-    );
-
-    // Unpack EX/MEM signals using fixed offsets for safety
-    assign ex_mem_alu_result   = ex_mem_out[77:46];
-    wire ex_mem_z_flag         = ex_mem_out[45];
-    wire [31:0] ex_mem_wr_data = ex_mem_out[44:13];
-    wire [5:0] ex_mem_rd_addr   = ex_mem_out[12:7];
-    wire ex_mem_mem_read       = ex_mem_out[6];
-    wire ex_mem_mem_write      = ex_mem_out[5];
-    wire ex_mem_reg_write      = ex_mem_out[4];
-    wire ex_mem_is_io          = ex_mem_out[3];
-    wire [1:0] ex_mem_wb_src    = ex_mem_out[2:1];
-    wire ex_mem_is_halt        = ex_mem_out[0];
-
-    // Stall Logic
-    wire stall_alu = !alu_done && (id_ex_alu_op != 6'h00);
-    assign dc_stall = stall_alu || stall_haz;
-
     //  [4] Memory Access (MEM) Stage 
-    assign dmem_addr = ex_mem_alu_result;
-    assign dmem_wr_data = ex_mem_wr_data;
-    assign dmem_we = ex_mem_mem_write;
-    assign dmem_re = ex_mem_mem_read;
+    wire [31:0] mem_wb_alu_result, mem_wb_mem_data;
+    wire [5:0]  mem_wb_rd_addr;
+    wire mem_wb_reg_write, mem_wb_is_io;
+    wire [1:0]  mem_wb_wb_src;
+    wire mem_wb_is_halt; // May be floating depending on mem_stage.v
 
-    // MEM/WB Pipeline Bits (Structural Guard)
-    localparam MEM_WB_WIDTH = 74;
-    wire [MEM_WB_WIDTH-1:0] mem_wb_in = {
-        ex_mem_alu_result, dmem_rd_data, ex_mem_rd_addr, ex_mem_reg_write, ex_mem_wb_src,
-        ex_mem_is_halt
-    };
-    wire [MEM_WB_WIDTH-1:0] mem_wb_out;
-    pipeline_reg #(.WIDTH(MEM_WB_WIDTH)) mem_wb_reg_inst (
-        .clk(clk), .rst(rst), .stall(stall_alu), .flush(1'b0),
-        .data_in(mem_wb_in), .data_out(mem_wb_out)
+    reg halt_latch;
+    always @(posedge clk or posedge rst) begin
+        if (rst) halt_latch <= 1'b0;
+        // Triggers gracefully whether you hooked up mem_wb_is_halt or not
+        else if (mem_wb_is_halt === 1'b1 || halt_pipe_3) halt_latch <= 1'b1; 
+    end
+    assign halt_cpu = halt_latch;
+
+    mem_stage mem_inst (
+        .clk(clk), .rst(rst),
+        .ex_mem_alu_result(ex_mem_alu_result), .ex_mem_zero(ex_mem_zero),
+        .ex_mem_wr_data(ex_mem_wr_data), .ex_mem_rd_addr(ex_mem_rd_addr),
+        .ex_mem_mem_read(ex_mem_mem_read), .ex_mem_mem_write(ex_mem_mem_write),
+        .ex_mem_reg_write(ex_mem_reg_write), .ex_mem_is_io(ex_mem_is_io), .ex_mem_wb_src(ex_mem_wb_src),
+        .ex_mem_is_halt(ex_mem_is_halt),
+        .dcache_data(dmem_rd_data), .dcache_hit(dcache_ready),
+        .dcache_addr(dmem_addr), .dcache_wr_data(dmem_wr_data), .dcache_we(dmem_we), .dcache_re(dmem_re),
+        .cache_stall(cache_stall),
+        .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
+        .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
+        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
+        .mem_wb_is_halt(mem_wb_is_halt)
     );
-
-    // Unpack MEM/WB signals using fixed offsets for safety
-    wire [31:0] mem_wb_alu_result = mem_wb_out[73:42];
-    wire [31:0] mem_wb_mem_data   = mem_wb_out[41:10];
-    assign mem_wb_rd_addr         = mem_wb_out[9:4];
-    assign mem_wb_reg_write       = mem_wb_out[3];
-    wire [1:0] mem_wb_wb_src      = mem_wb_out[2:1];
-    wire mem_wb_is_halt           = mem_wb_out[0];
-
-    assign halt_cpu = mem_wb_is_halt;
 
     //  [5] Write-Back (WB) Stage 
-    assign rf_wr_data = (mem_wb_wb_src == 2'b01) ? mem_wb_mem_data : mem_wb_alu_result;
+    wire [5:0]  rf_wr_addr;
+    wire        rf_we;
+
+
+
+    wb_stage wb_inst (
+        .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
+        .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
+        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
+        .io_data_in(io_data_in),
+        .rf_wr_addr(rf_wr_addr), .rf_wr_data(rf_wr_data), .rf_we(rf_we)
+    );
 
     //  Hazard Management and Core Units 
     register_file rf (
         .clk(clk), .rst(rst),
         .rs1_addr(rs1_addr_id), .rs2_addr(rs2_addr_id),
-        .rd_addr(mem_wb_rd_addr), .wr_data(rf_wr_data), .we(mem_wb_reg_write),
+        .rd_addr(rf_wr_addr), .wr_data(rf_wr_data), .we(rf_we),
         .rs1_data(rf_rs1_data), .rs2_data(rf_rs2_data)
     );
 
@@ -283,7 +224,7 @@ module cpu_top (
 
     forwarding_unit fwd (
         .ex_mem_rd_addr(ex_mem_rd_addr), .ex_mem_reg_write(ex_mem_reg_write),
-        .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
+        .mem_wb_rd_addr(rf_wr_addr), .mem_wb_reg_write(rf_we),
         .id_ex_rs1_addr(id_ex_rs1_addr), .id_ex_rs2_addr(id_ex_rs2_addr),
         .forwardA(forwardA), .forwardB(forwardB)
     );
@@ -293,6 +234,6 @@ module cpu_top (
         .take_branch(take_branch), .branch_target(branch_target),
         .pc_src(bhh_pc_src), .flush_IF(flush_IF), .flush_ID(flush_ID)
     );
-    assign pc_src = int_taken ? 2'b10 : {1'b0, bhh_pc_src};
+    assign pc_src = (int_taken == 1'b1) ? 2'b10 : {1'b0, (bhh_pc_src == 1'b1)};
 
 endmodule

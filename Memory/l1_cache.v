@@ -66,11 +66,7 @@ module l1_cache (
     localparam IDLE = 2'b00, ALLOCATE = 2'b01, WRITE_WAIT = 2'b10;
     reg [1:0] state, next_state;
 
-    assign mem_addr = addr;
     assign mem_wr_data = wr_data;
-    // Request memory ONLY on miss, write-through, or when already busy
-    assign mem_req = (state != IDLE) || miss || we;
-    assign mem_we = we; // Write-through: always propagate write to memory
 
     wire is_hit = (valid === 1'b1) && (rd_tag === tag);
     assign hit = (state == IDLE) && (re || we) && is_hit;

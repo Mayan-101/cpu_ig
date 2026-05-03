@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+`include "defines.vh"
 
 module register_file (
     input wire clk,
@@ -35,8 +35,8 @@ module register_file (
     wire [31:0] acc_q;
     wire [31:0] b_q;
 
-    wire acc_we = we & (rd_addr == 6'd32);
-    wire b_we   = we & (rd_addr == 6'd33);
+    wire acc_we = we & (rd_addr == `REG_ACC);
+    wire b_we   = we & (rd_addr == `REG_B);
 
     reg32 acc_reg (
         .clk(clk),
@@ -60,9 +60,9 @@ module register_file (
             rs1_data = 32'd0;
         end else if (we && (rd_addr == rs1_addr)) begin
             rs1_data = wr_data;
-        end else if (rs1_addr == 6'd32) 
+        end else if (rs1_addr == `REG_ACC) 
             rs1_data = acc_q;
-        else if (rs1_addr == 6'd33) 
+        else if (rs1_addr == `REG_B) 
             rs1_data = b_q;
         else if (rs1_addr < 6'd32) 
             rs1_data = reg_q[rs1_addr[4:0]];
@@ -75,9 +75,9 @@ module register_file (
             rs2_data = 32'd0;
         end else if (we && (rd_addr == rs2_addr)) begin
             rs2_data = wr_data;
-        end else if (rs2_addr == 6'd32) 
+        end else if (rs2_addr == `REG_ACC) 
             rs2_data = acc_q;
-        else if (rs2_addr == 6'd33) 
+        else if (rs2_addr == `REG_B) 
             rs2_data = b_q;
         else if (rs2_addr < 6'd32) 
             rs2_data = reg_q[rs2_addr[4:0]];

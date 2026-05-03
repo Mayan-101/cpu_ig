@@ -1,27 +1,20 @@
-/*
- * Module: id_stage
- * Description: Instruction Decode stage. Extracts fields, generates control signals, 
- *              performs immediate extension, and manages the ID/EX pipeline register.
- */
+`include "defines.vh"
+
 module id_stage (
     input  wire        clk,
     input  wire        rst,
     input  wire        flush,
     input  wire        stall,
     
-    // IF/ID Pipeline Inputs
     input  wire [31:0] if_id_instr,
     input  wire [31:0] if_id_pc_plus4,
-    
-    // Register File Inputs
     input  wire [31:0] regfile_rs1,
     input  wire [31:0] regfile_rs2,
     
-    // Register File Outputs (Read Addresses)
     output wire [5:0]  rs1_addr,
     output wire [5:0]  rs2_addr,
     
-    // ID/EX Pipeline Register Outputs
+    // Pipeline Register Outputs
     output reg  [5:0]  id_ex_alu_op,
     output reg         id_ex_mem_read,
     output reg         id_ex_mem_write,
@@ -38,44 +31,53 @@ module id_stage (
     output reg  [5:0]  id_ex_rd_addr,
     output reg  [5:0]  id_ex_rs1_addr,
     output reg  [5:0]  id_ex_rs2_addr,
-    output reg  [31:0] id_ex_pc_plus4
+    output reg  [31:0] id_ex_pc_plus4,
+    output reg  [7:0]  id_ex_funct,
+    output reg         id_ex_is_reti
 );
 
-    //  Instruction Field Extraction 
     wire [5:0] opcode = if_id_instr[31:26];
-    wire [5:0] rd     = if_id_instr[25:20];
-    wire [5:0] rs1    = if_id_instr[19:14];
-    wire [5:0] rs2    = if_id_instr[13:8];
-    wire [7:0] funct  = if_id_instr[7:0];
-
-    wire is_store  = (opcode == 6'h21 || opcode == 6'h23 || opcode == 6'h25);
-    wire is_branch = (opcode >= 6'h30 && opcode <= 6'h37);
     
-    assign rs1_addr = rs1;
-    assign rs2_addr = (is_store || is_branch) ? rd : rs2;
-
-    //  Control Unit and Immediate Extender 
-    wire [5:0] ctrl_alu_op;
-    wire ctrl_mem_read, ctrl_mem_write, ctrl_reg_write, ctrl_branch;
-    wire ctrl_jump, ctrl_is_float, ctrl_is_io, ctrl_alu_src;
-    wire [1:0] ctrl_wb_src, ctrl_ext_mode;
+    // Control Unit Signals
+    wire [5:0] alu_op;
+    wire mem_read, mem_write, reg_write, branch, jump;
+    wire is_float, is_io, alu_src, is_reti;
+    wire [1:0] wb_src, ext_mode;
     
     control_unit cu (
-        .opcode(opcode), .funct(funct),
-        .alu_op(ctrl_alu_op), .mem_read(ctrl_mem_read), .mem_write(ctrl_mem_write), .reg_write(ctrl_reg_write),
-        .branch(ctrl_branch), .jump(ctrl_jump), .is_float(ctrl_is_float), .is_io(ctrl_is_io),
-        .wb_src(ctrl_wb_src), .alu_src(ctrl_alu_src), .ext_mode(ctrl_ext_mode)
-    );
-    
-    wire [31:0] imm32;
-    imm_extender ext (
-        .instr_bits(if_id_instr[25:0]), .ext_mode(ctrl_ext_mode), .imm32(imm32)
+        .opcode(opcode),
+        .funct(if_id_instr[7:0]),
+        .alu_op(alu_op), .mem_read(mem_read), .mem_write(mem_write),
+        .reg_write(reg_write), .branch(branch), .jump(jump),
+        .is_float(is_float), .is_io(is_io), .wb_src(wb_src),
+        .alu_src(alu_src), .ext_mode(ext_mode), .is_reti(is_reti), 
+        .is_halt() // Handled directly in cpu_top.v
     );
 
-    //  ID/EX Pipeline Register Update 
+    wire [31:0] imm32;
+    imm_extender imm_ext (
+        .instr_bits(if_id_instr[25:0]),
+        .ext_mode(ext_mode),
+        .imm32(imm32)
+    );
+
+    // --- DYNAMIC REGISTER EXTRACTION ---
+    assign rs1_addr = if_id_instr[19:14];
+    
+    // Check if the instruction is a Branch (0x30-0x37) or Store (0x21, 0x23, 0x25)
+    wire is_b_type = (opcode[5:4] == 2'b11 && opcode[3] == 1'b0);
+    wire is_store  = (opcode[5:4] == 2'b10 && opcode[3] == 1'b0 && opcode[0] == 1'b1);
+    
+    // If Branch or Store, rs2 is mapped to bits [25:20]. Otherwise, [13:8]
+    assign rs2_addr = (is_b_type || is_store) ? if_id_instr[25:20] : if_id_instr[13:8];
+
+    // Destination register is always bits [25:20]
+    wire [5:0] rd_addr_in = if_id_instr[25:20];
+
+    // Pipeline Register
     always @(posedge clk) begin
         if (rst || flush) begin
-            id_ex_alu_op    <= 0;
+            id_ex_alu_op    <= 6'd0;
             id_ex_mem_read  <= 0;
             id_ex_mem_write <= 0;
             id_ex_reg_write <= 0;
@@ -83,34 +85,37 @@ module id_stage (
             id_ex_jump      <= 0;
             id_ex_is_float  <= 0;
             id_ex_is_io     <= 0;
-            id_ex_wb_src    <= 0;
+            id_ex_wb_src    <= 2'd0;
             id_ex_alu_src   <= 0;
-            id_ex_rs1_data  <= 0;
-            id_ex_rs2_data  <= 0;
-            id_ex_imm32     <= 0;
-            id_ex_rd_addr   <= 0;
-            id_ex_rs1_addr  <= 0;
-            id_ex_rs2_addr  <= 0;
-            id_ex_pc_plus4  <= 0;
+            id_ex_rs1_data  <= 32'd0;
+            id_ex_rs2_data  <= 32'd0;
+            id_ex_imm32     <= 32'd0;
+            id_ex_rd_addr   <= 6'd0;
+            id_ex_rs1_addr  <= 6'd0;
+            id_ex_rs2_addr  <= 6'd0;
+            id_ex_pc_plus4  <= 32'd0;
+            id_ex_funct     <= 8'd0;
+            id_ex_is_reti   <= 0;
         end else if (!stall) begin
-            id_ex_alu_op    <= ctrl_alu_op;
-            id_ex_mem_read  <= ctrl_mem_read;
-            id_ex_mem_write <= ctrl_mem_write;
-            id_ex_reg_write <= ctrl_reg_write;
-            id_ex_branch    <= ctrl_branch;
-            id_ex_jump      <= ctrl_jump;
-            id_ex_is_float  <= ctrl_is_float;
-            id_ex_is_io     <= ctrl_is_io;
-            id_ex_wb_src    <= ctrl_wb_src;
-            id_ex_alu_src   <= ctrl_alu_src;
+            id_ex_alu_op    <= alu_op;
+            id_ex_mem_read  <= mem_read;
+            id_ex_mem_write <= mem_write;
+            id_ex_reg_write <= reg_write;
+            id_ex_branch    <= branch;
+            id_ex_jump      <= jump;
+            id_ex_is_float  <= is_float;
+            id_ex_is_io     <= is_io;
+            id_ex_wb_src    <= wb_src;
+            id_ex_alu_src   <= alu_src;
             id_ex_rs1_data  <= regfile_rs1;
-            id_ex_rs2_data  <= regfile_rs2;
+            id_ex_rs2_data  <= regfile_rs2; // Holds correctly forwarded data for SW/Branches
             id_ex_imm32     <= imm32;
-            id_ex_rd_addr   <= rd;
+            id_ex_rd_addr   <= rd_addr_in;
             id_ex_rs1_addr  <= rs1_addr;
-            id_ex_rs2_addr  <= rs2_addr;
+            id_ex_rs2_addr  <= rs2_addr;    // Passes correct address to HDU/Forwarding
             id_ex_pc_plus4  <= if_id_pc_plus4;
+            id_ex_funct     <= if_id_instr[7:0];
+            id_ex_is_reti   <= is_reti;
         end
     end
-
 endmodule

@@ -1,3 +1,5 @@
+`include "defines.vh"
+
 /*
  * Module: control_unit
  * Description: Combinational control logic. Decodes opcode/funct fields 
@@ -18,7 +20,8 @@ module control_unit (
     output reg  [1:0] wb_src,   // 0: ALU, 1: MEM, 2: PC+4 (ACC), 3: IO
     output reg        alu_src,  // 0: RS2, 1: IMM
     output reg  [1:0] ext_mode, // 0: SIGN, 1: ZERO, 2: JUMP, 3: LUI
-    output reg        is_reti
+    output reg        is_reti,
+    output reg        is_halt   // Added explicit halt output control
 );
 
     always @(*) begin
@@ -35,6 +38,7 @@ module control_unit (
         alu_src   = 0;
         ext_mode  = 2'b00; // Default SIGN extension
         is_reti   = 0;
+        is_halt   = 0;
 
         case (opcode[5:4])
             //  Group 1: R-type Instructions (0x00 - 0x0F) 
@@ -47,11 +51,11 @@ module control_unit (
             //  Group 2: I-type ALU Instructions (0x10 - 0x1B) 
             2'b01: begin
                 alu_src = 1;
-                if (opcode != 6'h18) reg_write = 1; // CMPI does not write back
+                if (opcode != `OP_CMPI) reg_write = 1; // CMPI does not write back
                 
-                if (opcode == 6'h12 || opcode == 6'h13 || opcode == 6'h14) begin
+                if (opcode == `OP_ANDI || opcode == `OP_ORI || opcode == `OP_XORI) begin
                     ext_mode = 2'b01; // Logical instructions use ZERO extension
-                end else if (opcode == 6'h1A) begin
+                end else if (opcode == `OP_LUI) begin
                     ext_mode = 2'b11; // LUI mode
                 end
             end
@@ -60,16 +64,16 @@ module control_unit (
             2'b10: begin
                 if (opcode[3] == 0) begin // Load / Store
                     alu_src = 1;
-                    if (opcode == 6'h20 || opcode == 6'h22 || opcode == 6'h24 || opcode == 6'h26 || opcode == 6'h27) begin
+                    if (opcode == `OP_LW || opcode == `OP_LH || opcode == `OP_LB || opcode == `OP_LBU || opcode == `OP_LHU) begin
                         mem_read  = 1;
                         reg_write = 1;
                         wb_src    = 2'b01; // MEM source
-                    end else if (opcode == 6'h21 || opcode == 6'h23 || opcode == 6'h25) begin
+                    end else if (opcode == `OP_SW || opcode == `OP_SH || opcode == `OP_SB) begin
                         mem_write = 1;
                     end
                 end else begin // Floating Point
                     is_float = 1;
-                    if (opcode != 6'h2B && opcode != 6'h2F) reg_write = 1;
+                    if (opcode != `OP_FCMP && opcode != `OP_FMOV) reg_write = 1; // Corrected FCMP/FMOV logic
                 end
             end
 
@@ -78,23 +82,21 @@ module control_unit (
                 if (opcode[3] == 0) begin // Branching
                     branch = 1;
                 end else begin
-                    if (opcode >= 6'h38 && opcode <= 6'h3C) begin // Jump / Call
+                    if (opcode >= `OP_JAL && opcode <= `OP_CALL) begin // Jump / Call
                         jump = 1;
-                        if (opcode == 6'h38 || opcode == 6'h3A) ext_mode = 2'b10; // JUMP mode
-                        if (opcode == 6'h3C) is_reti = 1;
-                    end else if (opcode == 6'h3D || opcode == 6'h3E) begin // I/O
+                        if (opcode == `OP_JAL || opcode == `OP_CALL) ext_mode = 2'b10; // JUMP mode
+                        if (opcode == `OP_RETI) is_reti = 1;
+                    end else if (opcode == `OP_IN || opcode == `OP_OUT) begin // I/O
                         is_io    = 1;
                         alu_src  = 1;
                         ext_mode = 2'b01; 
-                        if (opcode == 6'h3D) begin // IN instruction
+                        if (opcode == `OP_IN) begin // IN instruction
                             reg_write = 1;
                             wb_src    = 2'b11; 
                         end
-                    end else if (opcode == 6'h3F) begin // MISC instructions
-                        if (funct == 8'h05 || funct == 8'h06 || funct == 8'h0A || funct == 8'h0B || 
-                            funct == 8'h0C || funct == 8'h0D || funct == 8'h04) begin
-                            reg_write = 1; 
-                        end
+                    end else if (opcode == `OP_MISC) begin // MISC instructions
+                        // Decode HALT operation
+                        if (funct == `FUNCT_HALT) is_halt = 1;
                     end
                 end
             end

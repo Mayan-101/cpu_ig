@@ -22,22 +22,14 @@ OuterLoop:
         LW x5, 0(x7)   ; x5 = arr[j]
         LW x6, 0(x8)   ; x6 = arr[j+1]
         
-        ; if arr[j] > arr[j+1] then swap
-        CMP x10, x5, x6 ; x10 = arr[j] - arr[j+1]
-        ; CMP usually sets flags or returns diff. 
-        ; Based on assembler, CMP is R-type (0x0F).
-        ; If x10 > 0, then x5 > x6.
-        ; But wait, how do I branch on CMP? 
-        ; BGT rs1, rs2, offset
-        ; I can just use BGT x5, x6, SwapLabel
+        ; If arr[j] <= arr[j+1], branch past the swap entirely
+        BLE x5, x6, SkipSwap   
         
-        BGT x5, x6, DoSwap
-        JAL SkipSwap   ; Go to next iteration
-        
+        ; If we didn't branch, it means arr[j] > arr[j+1] (Swap them)
         DoSwap:
         SW x6, 0(x7)
         SW x5, 0(x8)
-        
+
         SkipSwap:
         ADDI x3, x3, 1 ; j++
         BNE x3, x9, InnerLoop

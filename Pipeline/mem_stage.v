@@ -1,3 +1,4 @@
+`include "defines.vh"
 `timescale 1ns / 1ps
 
 module mem_stage (
@@ -15,53 +16,53 @@ module mem_stage (
     input  wire ex_mem_reg_write,
     input  wire ex_mem_is_io,
     input  wire [1:0] ex_mem_wb_src,
+    input  wire        ex_mem_is_halt,
     
-    // D-Cache / Memory Interface Inputs
+    // D-Cache Interface
     input  wire [31:0] dcache_data,
     input  wire dcache_hit,
-    
-    // D-Cache Outputs (Combinational)
     output wire [31:0] dcache_addr,
     output wire [31:0] dcache_wr_data,
     output wire dcache_we,
     output wire dcache_re,
     
-    // Stall/Flush Control
+    // Hazard/Stall Control
     output wire cache_stall,
     
     // MEM/WB Pipeline Register Outputs
     output reg  [31:0] mem_wb_alu_result,
     output reg  [31:0] mem_wb_mem_data,
     output reg  [5:0]  mem_wb_rd_addr,
-    output reg  mem_wb_reg_write,
+    output reg         mem_wb_reg_write,
     output reg  [1:0]  mem_wb_wb_src,
-    output reg  mem_wb_is_io
+    output reg         mem_wb_is_io,
+    output reg         mem_wb_is_halt
 );
 
-    // Interfaces directly to D-Cache
-    assign dcache_addr = ex_mem_alu_result;
+    assign dcache_addr    = ex_mem_alu_result;
     assign dcache_wr_data = ex_mem_wr_data;
-    assign dcache_we = ex_mem_mem_write && !ex_mem_is_io; // I/O uses separate space
-    assign dcache_re = ex_mem_mem_read && !ex_mem_is_io;
-
-    // Cache stall if reading/writing and it's a miss
-    assign cache_stall = (dcache_re || dcache_we) && !dcache_hit;
+    assign dcache_we      = ex_mem_mem_write;
+    assign dcache_re      = ex_mem_mem_read;
+    
+    assign cache_stall = ((ex_mem_mem_read == 1'b1) || (ex_mem_mem_write == 1'b1)) && (dcache_hit == 1'b0);
 
     always @(posedge clk) begin
         if (rst) begin
             mem_wb_alu_result <= 0;
-            mem_wb_mem_data <= 0;
-            mem_wb_rd_addr <= 0;
-            mem_wb_reg_write <= 0;
-            mem_wb_wb_src <= 0;
-            mem_wb_is_io <= 0;
+            mem_wb_mem_data   <= 0;
+            mem_wb_rd_addr    <= 0;
+            mem_wb_reg_write  <= 0;
+            mem_wb_wb_src     <= 0;
+            mem_wb_is_io      <= 0;
+            mem_wb_is_halt    <= 0;
         end else if (!cache_stall) begin
             mem_wb_alu_result <= ex_mem_alu_result;
-            mem_wb_mem_data <= dcache_data;
-            mem_wb_rd_addr <= ex_mem_rd_addr;
-            mem_wb_reg_write <= ex_mem_reg_write;
-            mem_wb_wb_src <= ex_mem_wb_src;
-            mem_wb_is_io <= ex_mem_is_io;
+            mem_wb_mem_data   <= dcache_data;
+            mem_wb_rd_addr    <= ex_mem_rd_addr;
+            mem_wb_reg_write  <= ex_mem_reg_write;
+            mem_wb_wb_src     <= ex_mem_wb_src;
+            mem_wb_is_io      <= ex_mem_is_io;
+            mem_wb_is_halt    <= ex_mem_is_halt;
         end
     end
 

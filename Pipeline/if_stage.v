@@ -1,3 +1,4 @@
+`include "defines.vh"
 `timescale 1ns / 1ps
 
 module if_stage (
@@ -19,21 +20,23 @@ module if_stage (
     output reg  [31:0] if_id_pc_plus4,
     
     // Hazard/Stall Control
-    output wire stall
+    input  wire stall_in,
+    output wire stall_out
 );
 
-    assign stall = !icache_hit;
-
+    assign stall_out = !icache_hit;
+    
     wire [31:0] pc_plus4 = pc + 4;
 
     always @(posedge clk) begin
+
         if (rst) begin
             if_id_instr <= 32'h00000000; // NOP
             if_id_pc_plus4 <= 32'h00000000;
         end else if (flush) begin
             if_id_instr <= 32'h00000000; // NOP
             if_id_pc_plus4 <= 32'h00000000;
-        end else if (!stall) begin
+        end else if (!(stall_out || stall_in)) begin
             if_id_instr <= icache_data;
             if_id_pc_plus4 <= pc_plus4;
         end

@@ -28,6 +28,7 @@ module tb_universal;
     integer debug_mode = 0;
 
     initial begin
+        $display("[TESTBENCH] Simulation starting...");
         // Load Program File
         if ($value$plusargs("PROG=%s", prog_file)) begin
             $readmemh(prog_file, uut.main_rom.mem);
@@ -60,10 +61,6 @@ module tb_universal;
             begin
                 while (halt_cpu_sig !== 1'b1) begin
                     @(posedge clk);
-                    if (debug_mode) begin
-                         $display("[DEBUG] T=%0t | PC=%h | INSTR=%h | STALL=%b", $time, uut.cpu.pc, uut.cpu.instr_in, uut.cpu.dc_stall);
-                         $fflush();
-                    end
                 end
                 $display("\n[SUCCESS] HLT instruction reached at time %t", $time);
                 disable main_sim;

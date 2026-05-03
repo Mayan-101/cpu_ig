@@ -51,7 +51,7 @@ prog = [
     encode_i(16, 4, 4, -1),          # 27: ADDI x4, x4, -1
     encode_b(49, 4, 0, -9),          # 28: BNE x4, x0, -9 
     
-    encode_i(63, 0, 0, 0)            # 29: HLT
+    encode_r(0x3F, 0, 0, 0, funct=0x00) # 29: HLT - Fixed format to match hardware FUNCT_HALT
 ]
 
 # Pad to 1024 words

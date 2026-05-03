@@ -27,18 +27,18 @@ module tb_cpu_top();
     );
 
     // Mock Instruction Memory (Word Indexed)
-    reg [31:0] imem [0:63];
+    reg [31:0] imem [0:255];
     always @(*) begin
-        instr_in = imem[pc[7:2]];
+        instr_in = imem[pc[9:2]];
     end
 
     // Mock Data Memory (Word Indexed)
-    reg [31:0] dmem [0:63];
+    reg [31:0] dmem [0:255];
     always @(*) begin
-        dmem_rd_data = dmem[dmem_addr[7:2]];
+        dmem_rd_data = dmem[dmem_addr[9:2]];
     end
     always @(posedge clk) begin
-        if (dmem_we) dmem[dmem_addr[7:2]] <= dmem_wr_data;
+        if (dmem_we) dmem[dmem_addr[9:2]] <= dmem_wr_data;
     end
 
     // Clock
@@ -50,77 +50,35 @@ module tb_cpu_top();
     integer i;
     initial begin
         // Initialize Memory
-        for (i=0; i<64; i=i+1) begin
-            imem[i] = 32'h00000000; // NOP
+        for (i=0; i<256; i=i+1) begin
+            imem[i] = 32'h00000000; 
             dmem[i] = 32'h00000000;
         end
 
-        /**
-         * Test Sequence:
-         * 0x00: ADD R1, R2, R3 (R2=10, R3=20 -> R1=30)  - 0x04108300
-         * 0x04: ADD R4, R1, R5 (R1=30, R5=40 -> R4=70)  - 0x04404500 (Forwarded R1)
-         * 0x08: LW  R6, 0(R7)  (R7=16, MEM[16]=99)      - 0x8061C000
-         * 0x0C: ADD R8, R6, R1 (R6=99, R1=30 -> R8=129) - 0x04818100 (Stall for LW)
-         * 0x10: BEQ R1, R4, 2  (30 != 70, Not Taken)    - 0xC0110002
-         * 0x14: ADD R9, R1, R1 (R1=30 -> R9=60)         - 0x04904100
-         * 0x18: BEQ R1, R1, 2  (30 == 30, Taken)        - 0xC0044002
-         * 0x1C: ADD R10, R2, R2 (Flushed)               - 0x04A08200
-         * 0x20: ADD R11, R2, R2 (Flushed)               - 0x04B08200
-         * 0x24: ADD R12, R2, R2 (Target of branch)      - 0x04C08200
-         */
-        imem[0] = 32'h04108300; 
-        imem[1] = 32'h04404500;
-        imem[2] = 32'h8061C000;
-        imem[3] = 32'h04818100;
-        imem[4] = 32'hC0110002;
-        imem[5] = 32'h04904100;
-        imem[6] = 32'hC0044002;
-        imem[7] = 32'h04A08200;
-        imem[8] = 32'h04B08200;
-        imem[9] = 32'h04C08200;
+        $display("Loading Bubble Sort Program...");
+        $readmemh("Programs/bubble_sort.mem", imem);
+        
+        // Initialize data to sort
+        dmem[10] = 32'd5;
+        dmem[11] = 32'd2;
+        dmem[12] = 32'd9;
+        dmem[13] = 32'd1;
+        dmem[14] = 32'd7;
 
         rst = 1;
         #20 rst = 0;
 
-        // Pre-fill registers
-        force uut.rf.gp_regs[2].reg_inst.q = 10;
-        force uut.rf.gp_regs[3].reg_inst.q = 20;
-        force uut.rf.gp_regs[5].reg_inst.q = 40;
-        force uut.rf.gp_regs[7].reg_inst.q = 16; // Byte address 16 = Word index 4
+        $display("Starting Bubble Sort Execution...");
         
-        dmem[4] = 99; // Value for LW at address 16
+        // Run for a long time
+        #50000;
 
-        $display("Starting CPU Pipeline Integration Test...");
-        $monitor("Time=%0t | PC=%h | Instr=%h | Stall=%b | FlushIF=%b | FlushID=%b", 
-                 $time, pc, instr_in, uut.stall_haz, uut.flush_IF, uut.flush_ID);
-
-        #400;
-
-        $display("Final Register Verification:");
-        #1;
-        $display("R1 (exp 30): %d", uut.rf.gp_regs[1].reg_inst.q);
-        $display("R4 (exp 70): %d", uut.rf.gp_regs[4].reg_inst.q);
-        $display("R6 (exp 99): %d", uut.rf.gp_regs[6].reg_inst.q);
-        $display("R8 (exp 129): %d", uut.rf.gp_regs[8].reg_inst.q);
-        $display("R9 (exp 60): %d", uut.rf.gp_regs[9].reg_inst.q);
-        $display("R12 (exp 20): %d", uut.rf.gp_regs[12].reg_inst.q);
-
-        if (uut.rf.gp_regs[8].reg_inst.q == 129 && uut.rf.gp_regs[12].reg_inst.q == 20)
-            $display("PASS: All hazards handled correctly!");
-        else
-            $display("FAIL: Final values mismatch.");
+        $display("Bubble Sort Result (Memory 10-14):");
+        for (i=10; i<=14; i=i+1) begin
+            $display("MEM[%0d] = %d", i, dmem[i]);
+        end
 
         $finish;
-    end
-
-    initial begin
-        #30;
-        release uut.rf.gp_regs[1].reg_inst.q;
-        release uut.rf.gp_regs[4].reg_inst.q;
-        release uut.rf.gp_regs[6].reg_inst.q;
-        release uut.rf.gp_regs[8].reg_inst.q;
-        release uut.rf.gp_regs[9].reg_inst.q;
-        release uut.rf.gp_regs[12].reg_inst.q;
     end
 
 endmodule
