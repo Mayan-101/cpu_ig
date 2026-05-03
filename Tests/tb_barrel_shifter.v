@@ -35,9 +35,9 @@ module tb_barrel_shifter;
         $finish;
     end
 
-    task test_shift(input [31:0] in_a, input [4:0] amt, input [1:0] type, input [31:0] name);
+    task test_shift(input [31:0] in_a, input [4:0] amt, input [1:0] t_mode, input [31:0] name);
         begin
-            a = in_a; shamt = amt; shift_type = type;
+            a = in_a; shamt = amt; shift_type = t_mode;
             #10;
             $display(" %s  | %h | %2d  | %h | %b", name, a, shamt, result, carry_out);
         end

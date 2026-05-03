@@ -33,10 +33,12 @@ module branch_target_calc (
             endcase
         end else if (jump == 1'b1) begin
             if (opcode == `OP_JAL || opcode == `OP_CALL) begin
-                target = pc + (imm32 << 2);
+                // Absolute region jump (MIPS style)
+                target = {pc[31:28], imm32[27:0]};
                 take_branch = 1'b1;
             end else if (opcode == `OP_JALR || opcode == `OP_RET || opcode == `OP_RETI) begin
-                target = valA; // Jump to register
+                // Register + Offset
+                target = valA + imm32;
                 take_branch = 1'b1;
             end
         end

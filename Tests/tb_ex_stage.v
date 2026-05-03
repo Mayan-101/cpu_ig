@@ -15,13 +15,13 @@ module tb_ex_stage;
     reg id_ex_is_io;
     reg [1:0] id_ex_wb_src;
     reg id_ex_alu_src;
-    
     reg [31:0] id_ex_rs1_data;
     reg [31:0] id_ex_rs2_data;
     reg [31:0] id_ex_imm32;
-    
     reg [5:0] id_ex_rd_addr;
-    
+    reg [7:0] id_ex_funct;
+    reg [31:0] id_ex_pc_plus4;
+    reg stall_in;
     reg [31:0] fwd_ex_mem_data;
     reg [31:0] fwd_mem_wb_data;
     reg [1:0] forwardA;
@@ -37,11 +37,15 @@ module tb_ex_stage;
     wire ex_mem_reg_write;
     wire ex_mem_is_io;
     wire [1:0] ex_mem_wb_src;
+    wire ex_mem_is_halt;
+    wire take_branch;
+    wire [31:0] branch_target;
 
     ex_stage dut (
         .clk(clk),
         .rst(rst),
         .id_ex_alu_op(id_ex_alu_op),
+        .id_ex_funct(id_ex_funct),
         .id_ex_mem_read(id_ex_mem_read),
         .id_ex_mem_write(id_ex_mem_write),
         .id_ex_reg_write(id_ex_reg_write),
@@ -55,10 +59,12 @@ module tb_ex_stage;
         .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32),
         .id_ex_rd_addr(id_ex_rd_addr),
+        .id_ex_pc_plus4(id_ex_pc_plus4),
         .fwd_ex_mem_data(fwd_ex_mem_data),
         .fwd_mem_wb_data(fwd_mem_wb_data),
         .forwardA(forwardA),
         .forwardB(forwardB),
+        .stall_in(stall_in),
         .alu_stall(alu_stall),
         .ex_mem_alu_result(ex_mem_alu_result),
         .ex_mem_zero(ex_mem_zero),
@@ -68,7 +74,10 @@ module tb_ex_stage;
         .ex_mem_mem_write(ex_mem_mem_write),
         .ex_mem_reg_write(ex_mem_reg_write),
         .ex_mem_is_io(ex_mem_is_io),
-        .ex_mem_wb_src(ex_mem_wb_src)
+        .ex_mem_wb_src(ex_mem_wb_src),
+        .ex_mem_is_halt(ex_mem_is_halt),
+        .take_branch(take_branch),
+        .branch_target(branch_target)
     );
 
     always #5 clk = ~clk;
@@ -91,6 +100,9 @@ module tb_ex_stage;
         id_ex_rs2_data = 0;
         id_ex_imm32 = 0;
         id_ex_rd_addr = 0;
+        id_ex_funct = 0;
+        id_ex_pc_plus4 = 0;
+        stall_in = 0;
         fwd_ex_mem_data = 0;
         fwd_mem_wb_data = 0;
         forwardA = 0;

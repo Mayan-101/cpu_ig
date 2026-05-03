@@ -23,7 +23,8 @@ module tb_if_stage;
         .flush(flush),
         .if_id_instr(if_id_instr),
         .if_id_pc_plus4(if_id_pc_plus4),
-        .stall(stall)
+        .stall_in(1'b0),
+        .stall_out(stall)
     );
 
     always #5 clk = ~clk;

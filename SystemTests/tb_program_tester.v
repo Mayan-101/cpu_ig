@@ -16,9 +16,23 @@ module tb_program_tester;
     integer i;
     initial begin
         $display("============================================================");
-        $display("  PROGRAM TESTER: Executing current ROM content");
+        $display("  PROGRAM TESTER: Executing bubble_sort.mem");
         $display("============================================================");
         
+        $readmemh("Scripts/bubble_sort.mem", uut.main_rom.mem);
+        
+        // Initialize RAM with unsorted data for bubble sort
+        uut.main_ram.mem[0] = 32'h0000000A;
+        uut.main_ram.mem[1] = 32'h00000001;
+        uut.main_ram.mem[2] = 32'h00000009;
+        uut.main_ram.mem[3] = 32'h00000002;
+        uut.main_ram.mem[4] = 32'h00000008;
+        uut.main_ram.mem[5] = 32'h00000003;
+        uut.main_ram.mem[6] = 32'h00000007;
+        uut.main_ram.mem[7] = 32'h00000004;
+        uut.main_ram.mem[8] = 32'h00000006;
+        uut.main_ram.mem[9] = 32'h00000005;
+
         clk = 0;
         rst = 1;
         #20 rst = 0;

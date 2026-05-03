@@ -28,11 +28,11 @@ module io_peripheral_bus (
     output wire        irq_out
 );
 
-    // Peripheral Selection Signals
-    wire gpio_sel = (io_addr >= 32'h1080 && io_addr <= 32'h10BF);
-    wire timer_sel = (io_addr >= 32'h1100 && io_addr <= 32'h111F);
-    wire uart_sel  = (io_addr >= 32'h1200 && io_addr <= 32'h120F);
-    wire intc_sel  = (io_addr >= 32'h1300 && io_addr <= 32'h130F);
+    // Peripheral Selection Signals (using relative addresses within 0x000-0xFFF)
+    wire gpio_sel  = (io_addr[11:8] == 4'h0); // 0x000-0x0FF
+    wire timer_sel = (io_addr[11:8] == 4'h1); // 0x100-0x1FF
+    wire uart_sel  = (io_addr[11:8] == 4'h2); // 0x200-0x2FF
+    wire intc_sel  = (io_addr[11:8] == 4'h3); // 0x300-0x3FF
 
     // Read Data wires
     wire [31:0] gpio_rdata, timer_rdata, uart_rdata, intc_rdata;

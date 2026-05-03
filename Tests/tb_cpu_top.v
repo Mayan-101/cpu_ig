@@ -56,7 +56,7 @@ module tb_cpu_top();
         end
 
         $display("Loading Bubble Sort Program...");
-        $readmemh("Programs/bubble_sort.mem", imem);
+        $readmemh("Scripts/bubble_sort.mem", imem);
         
         // Initialize data to sort
         dmem[10] = 32'd5;

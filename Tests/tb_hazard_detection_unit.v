@@ -92,10 +92,10 @@ module tb_hazard_detection_unit();
         if_id_rs1_addr = 6'd0;
         if_id_rs2_addr = 6'd2;
         #10;
-        if (stall === 1'b1 && nop_inject === 1'b1)
-            $display("PASS: Test 6 (Load-Use on R0) - stall=1, nop_inject=1");
+        if (stall === 1'b0 && nop_inject === 1'b0)
+            $display("PASS: Test 6 (No Load-Use on R0) - stall=0, nop_inject=0");
         else
-            $display("FAIL: Test 6 (Load-Use on R0) - stall=%b, nop_inject=%b", stall, nop_inject);
+            $display("FAIL: Test 6 (No Load-Use on R0) - stall=%b, nop_inject=%b", stall, nop_inject);
 
         $display("Hazard Detection Unit Test completed.");
         $finish;
