@@ -2,7 +2,7 @@
 ; C[i] = A[i] - B[i]
 
 ; Memory Setup
-LUI x1, 0x20000        ; x1 = RAM Start (Base for A)
+LUI x1, 0x10000        ; x1 = RAM Start (Base for A)
 ADDI x2, x1, 100       ; x2 = Base for B
 ADDI x3, x1, 200       ; x3 = Base for C
 
@@ -21,7 +21,7 @@ ADDI x5, x5, -1
 BNE x5, x0, InitLoop
 
 ; Reset Pointers
-LUI x1, 0x20000
+LUI x1, 0x10000
 ADDI x2, x1, 100
 ADDI x3, x1, 200
 ADDI x4, x0, 6

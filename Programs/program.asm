@@ -2,7 +2,7 @@
 ; Goal: Initialize two arrays and add them
 
 ; Initialization
-LUI x1, 0x20000        ; x1 = RAM Start (0x20000000)
+LUI x1, 0x10000        ; x1 = RAM Start (0x20000000)
 ADDI x2, x1, 20        ; x2 = Array B Start (0x20000014)
 ADDI x3, x1, 40        ; x3 = Array C Start (0x20000028)
 ADDI x4, x0, 5         ; x4 = Count (5)
@@ -23,7 +23,7 @@ ADDI x4, x4, -1        ; count--
 BNE x4, x0, InitLoop
 
 ; Reset Pointers
-LUI x1, 0x20000
+LUI x1, 0x10000
 ADDI x2, x1, 20
 ADDI x3, x1, 40
 ADDI x4, x0, 5

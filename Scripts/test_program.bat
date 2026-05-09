@@ -30,7 +30,7 @@ iverilog -g2012 -o universal_sim.vvp -I opcode SystemTests/tb_universal.v System
     Pipeline/imm_extender.v Pipeline/hazard_detection_unit.v Pipeline/forwarding_unit.v ^
     Pipeline/branch_hazard_handler.v Pipeline/branch_target_calc.v ^
     RegisterFile/register_file.v RegisterFile/reg32.v ^
-    Memory/address_decoder.v Memory/ram.v Memory/rom.v Memory/rom_async_dp.v ^
+    Memory/address_decoder.v Memory/ram.v Memory/itcm.v Memory/dtcm.v ^
     Memory/ram_async.v Memory/l1_cache.v Memory/addr_decomp.v Memory/cache_sram_way.v ^
     Peripherals/io_peripheral_bus.v Peripherals/gpio_top.v Peripherals/timer_top.v Peripherals/uart_top.v ^
     Peripherals/interrupt_controller.v

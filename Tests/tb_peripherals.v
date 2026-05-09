@@ -33,18 +33,18 @@ module tb_phase11();
         // 0x28: SW   R3, 0x300(R2)     ; INTC_ENABLE (Addr 0x40000300)
         // 0x2C: J    0x2C              ; Infinite Loop at 0x2C
         
-        uut.rom_inst.mem[0] = 32'h40100100; // ADDI R1, R0, 0x100
-        uut.rom_inst.mem[1] = 32'h68280000; // LUI  R2, 0x80000
-        uut.rom_inst.mem[2] = 32'h84108000; // SW   R1, 0(R2)
-        uut.rom_inst.mem[3] = 32'hFC000008; // SEI
-        uut.rom_inst.mem[4] = 32'h68240000; // LUI  R2, 0x40000
-        uut.rom_inst.mem[5] = 32'h40300032; // ADDI R3, R0, 50
-        uut.rom_inst.mem[6] = 32'h84308400; // SW   R3, 0x100(R2)
-        uut.rom_inst.mem[7] = 32'h40300001; // ADDI R3, R0, 1
-        uut.rom_inst.mem[8] = 32'h84308420; // SW   R3, 0x108(R2)
-        uut.rom_inst.mem[9] = 32'h40300001; // ADDI R3, R0, 1
-        uut.rom_inst.mem[10] = 32'h84308C00; // SW   R3, 0x300(R2)
-        uut.rom_inst.mem[11] = 32'hE000002C; // J 0x2C
+        uut.itcm_inst.mem[0] = 32'h40100100; // ADDI R1, R0, 0x100
+        uut.itcm_inst.mem[1] = 32'h68280000; // LUI  R2, 0x80000
+        uut.itcm_inst.mem[2] = 32'h84108000; // SW   R1, 0(R2)
+        uut.itcm_inst.mem[3] = 32'hFC000008; // SEI
+        uut.itcm_inst.mem[4] = 32'h68240000; // LUI  R2, 0x40000
+        uut.itcm_inst.mem[5] = 32'h40300032; // ADDI R3, R0, 50
+        uut.itcm_inst.mem[6] = 32'h84308400; // SW   R3, 0x100(R2)
+        uut.itcm_inst.mem[7] = 32'h40300001; // ADDI R3, R0, 1
+        uut.itcm_inst.mem[8] = 32'h84308420; // SW   R3, 0x108(R2)
+        uut.itcm_inst.mem[9] = 32'h40300001; // ADDI R3, R0, 1
+        uut.itcm_inst.mem[10] = 32'h84308C00; // SW   R3, 0x300(R2)
+        uut.itcm_inst.mem[11] = 32'hE000002C; // J 0x2C
         
         // --- INTERRUPT HANDLER (at 0x100) ---
         // 0x100: ADDI R5, R5, 1        ; Increment R5
@@ -53,11 +53,11 @@ module tb_phase11();
         // 0x10C: SW   R3, 0x10C(R2)    ; Clear Timer IRQ (Addr 0x4000010C)
         // 0x110: RETI
         
-        uut.rom_inst.mem[64] = 32'h40514001; // ADDI R5, R5, 1
-        uut.rom_inst.mem[65] = 32'h68240000; // LUI  R2, 0x40000
-        uut.rom_inst.mem[66] = 32'h40300000; // ADDI R3, R0, 0
-        uut.rom_inst.mem[67] = 32'h84308430; // SW   R3, 0x10C(R2)
-        uut.rom_inst.mem[68] = 32'hF0000000; // RETI
+        uut.itcm_inst.mem[64] = 32'h40514001; // ADDI R5, R5, 1
+        uut.itcm_inst.mem[65] = 32'h68240000; // LUI  R2, 0x40000
+        uut.itcm_inst.mem[66] = 32'h40300000; // ADDI R3, R0, 0
+        uut.itcm_inst.mem[67] = 32'h84308430; // SW   R3, 0x10C(R2)
+        uut.itcm_inst.mem[68] = 32'hF0000000; // RETI
 
         rst = 1;
         #20 rst = 0;

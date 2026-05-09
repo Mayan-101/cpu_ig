@@ -2,11 +2,11 @@
 ; Goal: Sort array in ascending order
 
 ; --- Initialization ---
-LUI x1, 0x20000        ; x1 = RAM Start
+LUI x1, 0x10000        ; x1 = RAM Start
 ADDI x2, x0, 10        ; size = 10
 
 ; --- Bubble Sort ---
-LUI x1, 0x20000        ; Base address
+LUI x1, 0x10000        ; Base address
 ADDI x2, x0, 0         ; i = 0
 ADDI x4, x0, 10        ; n = 10
 ADDI x9, x0, 9         ; n - 1 = 9

@@ -31,15 +31,15 @@ module tb_cpu_core_cache;
         // 0x1C: LW   R6, 16(R2)     ; Load back
         // 0x20: HLT
         
-        uut.main_rom.mem[0] = 32'h40100123;
-        uut.main_rom.mem[1] = 32'h68220000;
-        uut.main_rom.mem[2] = 32'h84108000;
-        uut.main_rom.mem[3] = 32'h80308000;
-        uut.main_rom.mem[4] = 32'h80508000;
-        uut.main_rom.mem[5] = 32'h40100456;
-        uut.main_rom.mem[6] = 32'h84108010;
-        uut.main_rom.mem[7] = 32'h80608010;
-        uut.main_rom.mem[8] = 32'hFC000000;
+        uut.itcm_inst.mem[0] = 32'h40100123;
+        uut.itcm_inst.mem[1] = 32'h68210000;
+        uut.itcm_inst.mem[2] = 32'h84108000;
+        uut.itcm_inst.mem[3] = 32'h80308000;
+        uut.itcm_inst.mem[4] = 32'h80508000;
+        uut.itcm_inst.mem[5] = 32'h40100456;
+        uut.itcm_inst.mem[6] = 32'h84108010;
+        uut.itcm_inst.mem[7] = 32'h80608010;
+        uut.itcm_inst.mem[8] = 32'hFC000000;
 
         $display(".3 — CPU + Cache Integration Test");
         $monitor("Time=%0t | PC=%h | Instr=%h | R3=%h | R5=%h | R6=%h | Stall=%b", 
@@ -60,9 +60,9 @@ module tb_cpu_core_cache;
         #2000;
         
         $display("Final Verification:");
-        $display("R3 (0x2000_0000 load):     %h", uut.cpu.rf.gp_regs[3].reg_inst.q);
-        $display("R5 (0x2000_0000 re-load):  %h", uut.cpu.rf.gp_regs[5].reg_inst.q);
-        $display("R6 (0x2000_0010 load):     %h", uut.cpu.rf.gp_regs[6].reg_inst.q);
+        $display("R3 (0x1000_0000 load):     %h", uut.cpu.rf.gp_regs[3].reg_inst.q);
+        $display("R5 (0x1000_0000 re-load):  %h", uut.cpu.rf.gp_regs[5].reg_inst.q);
+        $display("R6 (0x1000_0010 load):     %h", uut.cpu.rf.gp_regs[6].reg_inst.q);
         
         if (uut.cpu.rf.gp_regs[3].reg_inst.q == 32'h00000123 && 
             uut.cpu.rf.gp_regs[5].reg_inst.q == 32'h00000123 &&

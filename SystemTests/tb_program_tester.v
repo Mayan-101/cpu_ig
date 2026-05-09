@@ -19,7 +19,7 @@ module tb_program_tester;
         $display("  PROGRAM TESTER: Executing bubble_sort.mem");
         $display("============================================================");
         
-        $readmemh("Scripts/bubble_sort.mem", uut.main_rom.mem);
+        $readmemh("Programs/bubble_sort.mem", uut.itcm_inst.mem);
         
         // Initialize RAM with unsorted data for bubble sort
         uut.main_ram.mem[0] = 32'h0000000A;

@@ -31,7 +31,7 @@ module tb_universal;
         $display("[TESTBENCH] Simulation starting...");
         // Load Program File
         if ($value$plusargs("PROG=%s", prog_file)) begin
-            $readmemh(prog_file, uut.main_rom.mem);
+            $readmemh(prog_file, uut.itcm_inst.mem);
         end
         
         // Load Data File (RAM)
@@ -75,9 +75,9 @@ module tb_universal;
         for (i = dump_start; i <= dump_end; i = i + 1) begin
             if (uut.main_ram.mem[i] !== 32'hx && uut.main_ram.mem[i] !== 32'd0) begin
                 if (show_float) begin
-                    $display("RAM[0x%h]: %h", (i*4 + 32'h20000000), uut.main_ram.mem[i]);
+                    $display("RAM[0x%h]: %h", (i*4 + 32'h10000000), uut.main_ram.mem[i]);
                 end else begin
-                    $display("RAM[0x%h]: %d (0x%h)", (i*4 + 32'h20000000), $signed(uut.main_ram.mem[i]), uut.main_ram.mem[i]);
+                    $display("RAM[0x%h]: %d (0x%h)", (i*4 + 32'h10000000), $signed(uut.main_ram.mem[i]), uut.main_ram.mem[i]);
                 end
             end
         end

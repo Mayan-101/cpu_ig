@@ -34,49 +34,57 @@ module system_top (
     );
 
     //  Data Memory Bus (MEM Stage) 
-    wire rom_sel_d, ram_sel_d, io_sel_d, sys_sel_d;
-    wire [15:0] rom_addr_d;
-    wire [13:0] ram_addr_d;
+    wire itcm_sel_d, dtcm_sel_d, ram_sel_d, io_sel_d, sys_sel_d;
+    wire [13:0] itcm_addr_d, dtcm_addr_d;
+    wire [21:0] ram_addr_d;
     wire [11:0] io_addr_d;
-    wire rom_we_d, ram_we_d, io_we_d;
+    wire itcm_we_d, dtcm_we_d, ram_we_d, io_we_d;
 
     address_decoder data_dec (
         .addr(dmem_addr), .we(dmem_we), .re(dmem_re), .wr_data(dmem_wr_data),
-        .rom_sel(rom_sel_d), .ram_sel(ram_sel_d), .io_sel(io_sel_d), .sys_ctrl_sel(sys_sel_d),
-        .rom_addr(rom_addr_d), .ram_addr(ram_addr_d), .io_addr(io_addr_d), .sys_addr(),
-        .rom_we(rom_we_d), .ram_we(ram_we_d), .io_we(io_we_d), .sys_ctrl_we()
+        .itcm_sel(itcm_sel_d), .dtcm_sel(dtcm_sel_d), .ram_sel(ram_sel_d), .io_sel(io_sel_d), .sys_ctrl_sel(sys_sel_d),
+        .itcm_addr(itcm_addr_d), .dtcm_addr(dtcm_addr_d), .ram_addr(ram_addr_d), .io_addr(io_addr_d), .sys_addr(),
+        .itcm_we(itcm_we_d), .dtcm_we(dtcm_we_d), .ram_we(ram_we_d), .io_we(io_we_d), .sys_ctrl_we()
     );
 
 
     //  Instruction Fetch Bus (IF Stage) 
-    wire [15:0] rom_addr_i;
+    wire [13:0] itcm_addr_i;
+    wire itcm_sel_i;
     
     address_decoder instr_dec (
         .addr(pc), .we(1'b0), .re(1'b1), .wr_data(32'd0),
-        .rom_sel(), .ram_sel(), .io_sel(), .sys_ctrl_sel(),
-        .rom_addr(rom_addr_i), .ram_addr(), .io_addr(), .sys_addr(),
-        .rom_we(), .ram_we(), .io_we(), .sys_ctrl_we()
+        .itcm_sel(itcm_sel_i), .dtcm_sel(), .ram_sel(), .io_sel(), .sys_ctrl_sel(),
+        .itcm_addr(itcm_addr_i), .dtcm_addr(), .ram_addr(), .io_addr(), .sys_addr(),
+        .itcm_we(), .dtcm_we(), .ram_we(), .io_we(), .sys_ctrl_we()
     );
 
     //  Memory Resources 
-    wire [31:0] rom_data_instr, rom_data_load;
-    rom_async_dp #(
-        .ADDR_WIDTH(16),
-        .DEPTH(65536)
-    ) rom_inst (
-        .addr_a(rom_addr_i), .data_a(rom_data_instr),
-        .addr_b(rom_addr_d), .data_b(rom_data_load)
+    wire [31:0] itcm_dout_a, itcm_dout_b, dtcm_rd_data, ram_rd_data;
+    
+    // ITCM (Instruction TCM) - 64 KB
+    itcm itcm_inst (
+        .clk(clk),
+        .addr_a(itcm_addr_d),
+        .din_a(dmem_wr_data),
+        .we_a(itcm_we_d),
+        .dout_a(itcm_dout_a),
+        .addr_b(itcm_addr_i),
+        .dout_b(itcm_dout_b)
     );
-    assign instr_in = rom_data_instr;
+    assign instr_in = itcm_dout_b;
 
-    wire [31:0] ram_rd_data;
-    ram_async #(
-        .ADDR_WIDTH(14),
-        .DEPTH(16384)
-    ) ram_inst (
+    // DTCM (Data TCM) - 64 KB
+    dtcm dtcm_inst (
+        .clk(clk), .addr(dtcm_addr_d), .din(dmem_wr_data), .we(dtcm_we_d),
+        .dout(dtcm_rd_data)
+    );
+
+    // Main RAM - 16 MB
+    ram_async #(.ADDR_WIDTH(22), .DEPTH(4194304)) ram_inst (
         .clk(clk), .addr(ram_addr_d), .wr_data(dmem_wr_data),
         .we(ram_we_d), .rd_data(ram_rd_data),
-        .addr_b(14'd0), .rd_data_b()
+        .addr_b(22'd0), .rd_data_b()
     );
 
     //  I/O Peripheral Bus 
@@ -90,13 +98,14 @@ module system_top (
     );
 
     //  Bus Multiplexing 
-    assign dmem_rd_data = ram_sel_d ? ram_rd_data : 
-                          rom_sel_d ? rom_data_load : 
-                          io_sel_d  ? io_rdata_bus : 32'd0;
+    assign dmem_rd_data = ram_sel_d  ? ram_rd_data : 
+                          itcm_sel_d ? itcm_dout_a : 
+                          dtcm_sel_d ? dtcm_rd_data :
+                          io_sel_d   ? io_rdata_bus : 32'd0;
 
     //  External Peripheral Ports 
     assign io_data_out = dmem_wr_data;
-    assign io_addr_out = io_addr_d;
+    assign io_addr_out = dmem_addr[15:0];
     assign io_we_out   = io_we_d;
 
 endmodule

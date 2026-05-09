@@ -2,12 +2,12 @@
 ; C[i][j] = Sum_{k=0}^{1} (A[i][k] * B[k][j])
 
 ; Memory Map
-; A: 0x20000000 (8 floats)
-; B: 0x20000100 (12 floats)
-; C: 0x20000200 (24 floats)
+; A: 0x10000000 (8 floats)
+; B: 0x10000100 (12 floats)
+; C: 0x10000200 (24 floats)
 
 ; --- Initialization ---
-LUI x1, 0x20000
+LUI x1, 0x10000
 ADDI x2, x1, 100
 ADDI x3, x1, 200
 
@@ -29,7 +29,7 @@ ADDI x12, x12, -1
 BNE x12, x0, InitB
 
 ; --- Matrix Multiplications ---
-LUI x1, 0x20000        ; Base A
+LUI x1, 0x10000        ; Base A
 ADDI x2, x1, 100       ; Base B
 ADDI x3, x1, 200       ; Base C
 

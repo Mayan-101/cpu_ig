@@ -27,27 +27,47 @@ module system_cache_top (
         .halt_cpu(halt_cpu)
     );
 
-    wire [31:0] rom_data_a, ram_data_a;
-    wire is_rom = (pc < 32'h2000_0000);
-    wire is_ram = (dmem_addr >= 32'h2000_0000 && dmem_addr <= 32'h2000_FFFF);
+    wire [31:0] itcm_data, dtcm_data, ram_data;
+    wire is_itcm = (pc < 32'h0001_0000);
+    wire is_ram  = (dmem_addr >= 32'h1000_0000 && dmem_addr <= 32'h10FF_FFFF);
+    wire is_dtcm = (dmem_addr >= 32'h0001_0000 && dmem_addr <= 32'h0001_FFFF);
+    wire is_itcm_data = (dmem_addr < 32'h0001_0000); // Allow data access to ITCM
 
-    rom_async_dp #(.ADDR_WIDTH(16)) main_rom (
-        .addr_a(pc[17:2]), .data_a(rom_data_a),
-        .addr_b(16'd0), .data_b()
+    // ITCM (Instruction TCM) - 64 KB
+    itcm itcm_inst (
+        .clk(clk),
+        .addr_a(dmem_addr[15:2]),
+        .din_a(dmem_wr_data),
+        .we_a(dmem_we && is_itcm_data),
+        .dout_a(itcm_data),
+        .addr_b(pc[15:2]),
+        .dout_b(instr_in)
     );
-    assign instr_in = rom_data_a;
 
-    ram_async #(.ADDR_WIDTH(14)) main_ram (
-        .clk(clk), .addr(dmem_addr[15:2]), .wr_data(dmem_wr_data), .we(dmem_we && is_ram),
-        .rd_data(ram_data_a),
-        .addr_b(14'd0), .rd_data_b()
+    // DTCM (Data TCM) - 64 KB
+    dtcm dtcm_inst (
+        .clk(clk),
+        .addr(dmem_addr[15:2]),
+        .din(dmem_wr_data),
+        .we(dmem_we && is_dtcm),
+        .dout(dtcm_data)
     );
-    assign dmem_rd_data = ram_data_a;
+
+    // Main RAM - 16 MB
+    ram_async #(.ADDR_WIDTH(22), .DEPTH(4194304)) main_ram (
+        .clk(clk), .addr(dmem_addr[23:2]), .wr_data(dmem_wr_data), .we(dmem_we && is_ram),
+        .rd_data(ram_data),
+        .addr_b(22'd0), .rd_data_b()
+    );
+
+    assign dmem_rd_data = is_dtcm ? dtcm_data : 
+                          is_ram  ? ram_data  : 
+                          is_itcm_data ? itcm_data : 32'd0;
     
     assign stall_cpu = 1'b0;
 
     //  I/O Peripheral Bus 
-    wire io_sel_d = (dmem_addr >= 32'h4000_0000 && dmem_addr <= 32'h4000_0FFF);
+    wire io_sel_d = (dmem_addr >= 32'h4000_0000 && dmem_addr <= 32'h4FFF_FFFF);
     io_peripheral_bus io_bus (
         .clk(clk), .rst(rst),
         .io_addr(dmem_addr), .io_wdata(dmem_wr_data), .io_we(dmem_we & io_sel_d), .io_re(dmem_re & io_sel_d), .io_size(2'b10),

@@ -64,8 +64,8 @@ module tb_l1_cache;
     end
 
     initial begin
-        $dumpfile("tb_l1_cache.vcd");
-        $dumpvars(0, tb_l1_cache);
+        // $dumpfile("tb_l1_cache.vcd");
+        // $dumpvars(0, tb_l1_cache);
         
         // Timeout
         #5000;

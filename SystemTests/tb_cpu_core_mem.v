@@ -30,14 +30,14 @@ module tb_cpu_core_mem();
         // 0x18: LW   R5, 4(R2)      ; R5 = RAM[1]
         // 0x1C: HLT                 ; Halt
         
-        uut.rom_inst.mem[0] = 32'h40100123;
-        uut.rom_inst.mem[1] = 32'h68220000;
-        uut.rom_inst.mem[2] = 32'h84108000;
-        uut.rom_inst.mem[3] = 32'h80308000;
-        uut.rom_inst.mem[4] = 32'h40100456;
-        uut.rom_inst.mem[5] = 32'h84108004;
-        uut.rom_inst.mem[6] = 32'h80508004;
-        uut.rom_inst.mem[7] = 32'hFC000000;
+        uut.itcm_inst.mem[0] = 32'h40100123;
+        uut.itcm_inst.mem[1] = 32'h68210000;
+        uut.itcm_inst.mem[2] = 32'h84108000;
+        uut.itcm_inst.mem[3] = 32'h80308000;
+        uut.itcm_inst.mem[4] = 32'h40100456;
+        uut.itcm_inst.mem[5] = 32'h84108004;
+        uut.itcm_inst.mem[6] = 32'h80508004;
+        uut.itcm_inst.mem[7] = 32'hFC000000;
 
         $display(".2 — CPU Core + Memory Integration Test");
         $monitor("Time=%0t | PC=%h | Instr=%h | R3=%h | R5=%h | ram_we=%b", 
