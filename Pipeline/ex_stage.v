@@ -14,6 +14,7 @@ module ex_stage (
     input  wire id_ex_jump,
     input  wire id_ex_is_float,
     input  wire id_ex_is_io,
+    input  wire id_ex_is_halt,
     input  wire [1:0] id_ex_wb_src,
     input  wire id_ex_alu_src,
     
@@ -87,13 +88,16 @@ module ex_stage (
     wire alu_done;
     wire [31:0] psw_out;
 
-    reg alu_start_reg;
+    reg alu_started;
     always @(posedge clk) begin
-        if (rst) alu_start_reg <= 0;
-        else if (is_multi_cycle && !alu_done) alu_start_reg <= 1;
-        else alu_start_reg <= 0;
+        if (rst)
+            alu_started <= 1'b0;
+        else if (alu_done)
+            alu_started <= 1'b0;          // clear only when operation finishes
+        else if (is_multi_cycle && !alu_started)
+            alu_started <= 1'b1;          // set on first cycle of operation
     end
-    wire start_alu = is_multi_cycle && !alu_start_reg;
+    wire start_alu = is_multi_cycle && !alu_started;
 
     alu_top alu_inst (
         .clk(clk), .rst(rst), .start(start_alu),
@@ -131,8 +135,7 @@ module ex_stage (
             ex_mem_reg_write <= id_ex_reg_write;
             ex_mem_is_io <= id_ex_is_io;
             ex_mem_wb_src <= id_ex_wb_src;
-            // HALT detection based on opcode and funct
-            ex_mem_is_halt <= (id_ex_alu_op == `OP_MISC && id_ex_funct == `FUNCT_HALT);
+            ex_mem_is_halt   <= id_ex_is_halt;
         end
     end
 

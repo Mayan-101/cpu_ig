@@ -33,7 +33,8 @@ module id_stage (
     output reg  [5:0]  id_ex_rs2_addr,
     output reg  [31:0] id_ex_pc_plus4,
     output reg  [7:0]  id_ex_funct,
-    output reg         id_ex_is_reti
+    output reg         id_ex_is_reti,
+    output reg         id_ex_is_halt
 );
 
     wire [5:0] opcode = if_id_instr[31:26];
@@ -41,7 +42,7 @@ module id_stage (
     // Control Unit Signals
     wire [5:0] alu_op;
     wire mem_read, mem_write, reg_write, branch, jump;
-    wire is_float, is_io, alu_src, is_reti;
+    wire is_float, is_io, alu_src, is_reti, is_halt;
     wire [1:0] wb_src, ext_mode;
     
     control_unit cu (
@@ -51,7 +52,7 @@ module id_stage (
         .reg_write(reg_write), .branch(branch), .jump(jump),
         .is_float(is_float), .is_io(is_io), .wb_src(wb_src),
         .alu_src(alu_src), .ext_mode(ext_mode), .is_reti(is_reti), 
-        .is_halt() // Handled directly in cpu_top.v
+        .is_halt(is_halt)
     );
 
     wire [31:0] imm32;
@@ -96,6 +97,7 @@ module id_stage (
             id_ex_pc_plus4  <= 32'd0;
             id_ex_funct     <= 8'd0;
             id_ex_is_reti   <= 0;
+            id_ex_is_halt   <= 0;
         end else if (!stall) begin
             id_ex_alu_op    <= alu_op;
             id_ex_mem_read  <= mem_read;
@@ -116,6 +118,7 @@ module id_stage (
             id_ex_pc_plus4  <= if_id_pc_plus4;
             id_ex_funct     <= if_id_instr[7:0];
             id_ex_is_reti   <= is_reti;
+            id_ex_is_halt   <= is_halt;
         end
     end
 endmodule

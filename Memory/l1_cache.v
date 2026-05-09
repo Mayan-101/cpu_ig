@@ -68,12 +68,12 @@ module l1_cache (
 
     assign mem_wr_data = wr_data;
 
-    wire is_hit = (valid === 1'b1) && (rd_tag === tag);
+    wire is_hit = (valid == 1'b1) && (rd_tag == tag);
     assign hit = (state == IDLE) && (re || we) && is_hit;
     assign miss = (state == IDLE) && (re || we) && !is_hit;
     
     // Stall logic: Default to stalling if state is unknown or if we have a miss
-    assign stall = (state !== IDLE) || (miss && !is_hit) || (we && !serviced && !reset); 
+    assign stall = (state != IDLE) || (miss && !is_hit) || (we && !serviced && !reset); 
     
     reg mem_req_reg;
     reg mem_we_reg;

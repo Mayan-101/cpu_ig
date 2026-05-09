@@ -38,10 +38,10 @@ OPCODES = {
     # Group 3: Load/Store (I-type)
     'LW':   (0x20, 'M'), 
     'SW':   (0x21, 'M'),
-    'LB':   (0x22, 'M'),
-    'SB':   (0x23, 'M'),
-    'LH':   (0x24, 'M'),
-    'SH':   (0x25, 'M'),
+    'LH':   (0x22, 'M'),  # OP_LH=0x22 per defines.vh
+    'SH':   (0x23, 'M'),  # OP_SH=0x23
+    'LB':   (0x24, 'M'),  # OP_LB=0x24
+    'SB':   (0x25, 'M'),  # OP_SB=0x25
     'LBU':  (0x26, 'M'),
     'LHU':  (0x27, 'M'),
 
@@ -71,30 +71,33 @@ OPCODES = {
     'RET':  (0x3B, 'R'),
     'RETI': (0x3C, 'R'),
 
-    # Group 8: MISC (Opcode 0x3F) 
-    'HLT':   (0x3F, 'MISC', 0x00),
-    'NOP_M': (0x3F, 'MISC', 0x01), 
-    'PUSH':  (0x3F, 'MISC', 0x02),
-    'POP':   (0x3F, 'MISC', 0x03),
-    'MOVSP': (0x3F, 'MISC', 0x04),
-    'GETSP': (0x3F, 'MISC', 0x05),
-    'SETB':  (0x3F, 'MISC', 0x06),
-    'CLRB':  (0x3F, 'MISC', 0x07),
-    'SEI':   (0x3F, 'MISC', 0x08), 
-    'CLI':   (0x3F, 'MISC', 0x09), 
-    'TESTB': (0x3F, 'MISC', 0x0A), 
-    'ADDC_R':(0x3F, 'MISC', 0x0B), 
-    'SUBC':  (0x3F, 'MISC', 0x0C),
-    'SWAP':  (0x3F, 'MISC', 0x0D),
-    'MOV':   (0x3F, 'MISC', 0x0E),
+    # Group 7: I/O
+    'IN':   (0x3D, 'IO'),  # IN  rd, port  — OP_IN=0x3D
+    'OUT':  (0x3E, 'IO'),  # OUT rd, port  — OP_OUT=0x3E
+
+    # Group 8: MISC (Opcode 0x3F)
+    # Only ops with actual hardware decode are retained.
+    # Removed (no RISC-V base ISA equivalent, no hardware decode):
+    #   NOP_M  → use NOP (ADDI x0, x0, 0)
+    #   PUSH   → use ADDI sp, sp, -4 then SW
+    #   POP    → use LW then ADDI sp, sp, 4
+    #   MOVSP/GETSP → sp is register x2, use ADD/ADDI
+    #   SETB/CLRB/TESTB → use ORI/ANDI/XORI
+    #   ADDC_R/SUBC → no carry arithmetic in RISC-V
+    #   SWAP   → no register-swap in RISC-V; use temp register
+    #   MOV    → use ADDI rd, rs1, 0
+    'HLT': (0x3F, 'MISC', 0x00),  # WFI/EBREAK equivalent; decoded in control_unit + cpu_top
+    'SEI': (0x3F, 'MISC', 0x08),  # CSR-equivalent: enable interrupts (psw[31]←1)
+    'CLI': (0x3F, 'MISC', 0x09),  # CSR-equivalent: disable interrupts (psw[31]←0)
 }
 
 REGS = {f'x{i}': i for i in range(32)}
 REGS.update({
-    'acc': 32,
-    'b': 33,
-    'zero': 0,
-    'ra': 32, 
+    'acc':  32,
+    'b':    33,
+    'zero':  0,   # x0 — hardwired zero
+    'ra':    1,   # x1 — return address (RISC-V ABI)
+    'sp':    2,   # x2 — stack pointer (RISC-V ABI)
 })
 
 def parse_reg(reg_str):
@@ -163,6 +166,13 @@ def encode_instr(opcode, format_info, args, current_pc, labels):
             offset = parse_imm(target)
         return (op << 26) | (offset & 0x3FFFFFF)
     
+    elif fmt == 'IO':
+        # IN rd, port  /  OUT rd, port
+        # Encoding: [opcode|rd|0|port_imm]  (no rs1; port in immediate field)
+        rd  = parse_reg(args[0])
+        imm = parse_imm(args[1])
+        return (op << 26) | (rd << 20) | (imm & 0x3FFF)
+
     elif fmt == 'MISC':
         funct = opcode[2]
         rd = parse_reg(args[0]) if len(args) > 0 else 0

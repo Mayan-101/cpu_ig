@@ -25,7 +25,7 @@ iverilog -g2012 -o universal_sim.vvp -I opcode SystemTests/tb_universal.v System
     ALU/booth_encoder.v ALU/booth_step.v ALU/divider.v ^
     ALU/float_add_sub.v ALU/float_mul.v ALU/float_norm.v ALU/float_unpacker.v ^
     ALU/float_packer.v ALU/mantissa_aligner.v ALU/float_itof.v ALU/float_ftoi.v ^
-    Pipeline/cpu_top.v Pipeline/if_stage.v Pipeline/id_stage.v Pipeline/ex_stage.v ^
+    Pipeline/cpu_top.v Pipeline/csr_unit.v Pipeline/if_stage.v Pipeline/id_stage.v Pipeline/ex_stage.v ^
     Pipeline/mem_stage.v Pipeline/wb_stage.v Pipeline/control_unit.v ^
     Pipeline/imm_extender.v Pipeline/hazard_detection_unit.v Pipeline/forwarding_unit.v ^
     Pipeline/branch_hazard_handler.v Pipeline/branch_target_calc.v ^

@@ -25,9 +25,10 @@ module cpu_top (
     output wire        halt_cpu
 );
 
-    // Internal Control / Status Signals
-    reg [31:0] psw;
-    reg [31:0] mtvec, mepc, mstatus;
+    // CSR outputs (from csr_unit)
+    wire [31:0] psw;
+    wire [31:0] mtvec, mepc, mstatus;
+    wire        int_taken;
     
     wire [31:0] branch_target;
     wire        take_branch;
@@ -44,22 +45,8 @@ module cpu_top (
 
     wire cache_stall; // Forward declaration
 
-    // Halt Tracking Shift Register (Bypasses missing internal stage routing)
-    reg halt_pipe_1, halt_pipe_2, halt_pipe_3;
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            halt_pipe_1 <= 1'b0;
-            halt_pipe_2 <= 1'b0;
-            halt_pipe_3 <= 1'b0;
-        end else if (!pipe_stall) begin
-            halt_pipe_1 <= is_halt_id && !flush_ID;
-            halt_pipe_2 <= halt_pipe_1 && !flush_ID; // Propagation also needs to be flushable
-            halt_pipe_3 <= halt_pipe_2;
-        end
-    end
-
     wire pc_stall = (stall_haz == 1'b1) || (stall_alu == 1'b1) || (cache_stall == 1'b1) || 
-                    (halt_latch == 1'b1) || (is_halt_id && !flush_ID);
+                    (halt_latch == 1'b1) || (ex_mem_is_halt == 1'b1);
     wire pipe_stall = (stall_alu == 1'b1) || (cache_stall == 1'b1) || (halt_latch == 1'b1);
     
     always @(posedge clk or posedge rst) begin
@@ -94,6 +81,7 @@ module cpu_top (
     wire [5:0]  id_ex_rd_addr, id_ex_rs1_addr, id_ex_rs2_addr;
     wire [7:0]  id_ex_funct;
     wire        id_ex_is_reti;
+    wire        id_ex_is_halt;
 
     id_stage id_inst (
         .clk(clk), .rst(rst), .flush(flush_ID || nop_inject_haz), .stall(pipe_stall),
@@ -106,12 +94,19 @@ module cpu_top (
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_rs1_addr(id_ex_rs1_addr),
         .id_ex_rs2_addr(id_ex_rs2_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
-        .id_ex_funct(id_ex_funct), .id_ex_is_reti(id_ex_is_reti)
+        .id_ex_funct(id_ex_funct), .id_ex_is_reti(id_ex_is_reti),
+        .id_ex_is_halt(id_ex_is_halt)
     );
 
-    wire int_taken = (irq == 1'b1) && (psw[31] == 1'b1);
-    wire is_halt_id = (if_id_instr[31:26] == `OP_MISC && if_id_instr[7:0] == `FUNCT_HALT);
-    
+    csr_unit csr_inst (
+        .clk(clk), .rst(rst),
+        .stall(cache_stall),
+        .dmem_addr(dmem_addr), .dmem_wr_data(dmem_wr_data), .dmem_we(dmem_we),
+        .ex_alu_op(id_ex_alu_op), .ex_funct(id_ex_funct),
+        .irq(irq), .pc(pc),
+        .psw(psw), .mtvec(mtvec), .mepc(mepc), .mstatus(mstatus),
+        .int_taken(int_taken)
+    );
 
     //  [3] Execute (EX) Stage 
     wire [1:0] forwardA, forwardB;
@@ -120,13 +115,14 @@ module cpu_top (
     wire ex_mem_zero, ex_mem_mem_read, ex_mem_mem_write, ex_mem_reg_write, ex_mem_is_io;
     wire [1:0] ex_mem_wb_src;
     wire [31:0] rf_wr_data; 
-    wire ex_mem_is_halt; // May be floating depending on ex_stage.v
+    wire ex_mem_is_halt;
 
     ex_stage ex_inst (
         .clk(clk), .rst(rst),
         .id_ex_alu_op(id_ex_alu_op), .id_ex_mem_read(id_ex_mem_read), .id_ex_mem_write(id_ex_mem_write),
         .id_ex_reg_write(id_ex_reg_write), .id_ex_branch(id_ex_branch), .id_ex_jump(id_ex_jump),
-        .id_ex_is_float(id_ex_is_float), .id_ex_is_io(id_ex_is_io), .id_ex_wb_src(id_ex_wb_src),
+        .id_ex_is_float(id_ex_is_float), .id_ex_is_io(id_ex_is_io), .id_ex_is_halt(id_ex_is_halt),
+        .id_ex_wb_src(id_ex_wb_src),
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
         .fwd_ex_mem_data(ex_mem_mem_read ? dmem_rd_data : (ex_mem_is_io ? io_data_in : ex_mem_alu_result)), .fwd_mem_wb_data(rf_wr_data),
@@ -141,40 +137,17 @@ module cpu_top (
         .take_branch(take_branch), .branch_target(branch_target)
     );
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            psw <= 32'd0;
-            mtvec   <= 32'h0000_0000;
-            mepc    <= 32'h0000_0000;
-            mstatus <= 32'h0000_0000;
-        end else if (!cache_stall) begin
-            if (dmem_we) begin
-                if (dmem_addr == 32'h8000_0000) mtvec   <= dmem_wr_data;
-                if (dmem_addr == 32'h8000_0004) mepc    <= dmem_wr_data;
-                if (dmem_addr == 32'h8000_0008) mstatus <= dmem_wr_data;
-            end
-            if (id_ex_alu_op == `OP_MISC) begin
-                if (id_ex_funct == `FUNCT_EI) psw[31] <= 1'b1;
-                if (id_ex_funct == `FUNCT_DI) psw[31] <= 1'b0;
-            end
-            if (int_taken) begin
-                mepc <= pc; mstatus <= psw; psw[31] <= 1'b0; 
-            end
-        end
-    end
-
     //  [4] Memory Access (MEM) Stage 
     wire [31:0] mem_wb_alu_result, mem_wb_mem_data;
     wire [5:0]  mem_wb_rd_addr;
     wire mem_wb_reg_write, mem_wb_is_io;
     wire [1:0]  mem_wb_wb_src;
-    wire mem_wb_is_halt; // May be floating depending on mem_stage.v
+    wire mem_wb_is_halt;
 
     reg halt_latch;
     always @(posedge clk or posedge rst) begin
         if (rst) halt_latch <= 1'b0;
-        // Triggers gracefully whether you hooked up mem_wb_is_halt or not
-        else if (mem_wb_is_halt === 1'b1 || halt_pipe_3) halt_latch <= 1'b1; 
+        else if (mem_wb_is_halt) halt_latch <= 1'b1;
     end
     assign halt_cpu = halt_latch;
 
