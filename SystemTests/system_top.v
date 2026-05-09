@@ -35,7 +35,8 @@ module system_top (
 
     //  Data Memory Bus (MEM Stage) 
     wire itcm_sel_d, dtcm_sel_d, ram_sel_d, io_sel_d, sys_sel_d;
-    wire [13:0] itcm_addr_d, dtcm_addr_d;
+    wire [11:0] itcm_addr_d;
+    wire [10:0] dtcm_addr_d;
     wire [21:0] ram_addr_d;
     wire [11:0] io_addr_d;
     wire itcm_we_d, dtcm_we_d, ram_we_d, io_we_d;
@@ -49,7 +50,7 @@ module system_top (
 
 
     //  Instruction Fetch Bus (IF Stage) 
-    wire [13:0] itcm_addr_i;
+    wire [11:0] itcm_addr_i;
     wire itcm_sel_i;
     
     address_decoder instr_dec (
@@ -62,7 +63,7 @@ module system_top (
     //  Memory Resources 
     wire [31:0] itcm_dout_a, itcm_dout_b, dtcm_rd_data, ram_rd_data;
     
-    // ITCM (Instruction TCM) - 64 KB
+    // ITCM (Instruction TCM) - 16 KB
     itcm itcm_inst (
         .clk(clk),
         .addr_a(itcm_addr_d),
@@ -74,7 +75,7 @@ module system_top (
     );
     assign instr_in = itcm_dout_b;
 
-    // DTCM (Data TCM) - 64 KB
+    // DTCM (Data TCM) - 8 KB
     dtcm dtcm_inst (
         .clk(clk), .addr(dtcm_addr_d), .din(dmem_wr_data), .we(dtcm_we_d),
         .dout(dtcm_rd_data)

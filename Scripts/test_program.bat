@@ -18,7 +18,10 @@ python Assembler/assembler.py Programs/%PROG%.asm Programs/%PROG%.mem
 if %errorlevel% neq 0 exit /b 1
 
 echo [2/3] Compiling Universal Testbench...
-iverilog -g2012 -o universal_sim.vvp -I opcode SystemTests/tb_universal.v SystemTests/system_cache_top.v ^
+iverilog -g2012 -o universal_sim.vvp -I opcode ^
+    -I ALU -I Memory -I Pipeline -I RegisterFile -I Peripherals -I SystemTests ^
+    -y ALU -y Memory -y Pipeline -y RegisterFile -y Peripherals -y SystemTests ^
+    SystemTests/tb_universal.v SystemTests/system_cache_top.v ^
     ALU/alu_top.v ALU/alu_int.v ALU/cla_32bit.v ALU/cla_16bit.v ALU/cla_4bit.v ^
     ALU/full_adder.v ALU/half_adder.v ALU/sub_32bit.v ALU/bitwise_unit.v ^
     ALU/barrel_shifter.v ALU/comparator_unit.v ALU/booth_multiplier.v ^
@@ -32,6 +35,7 @@ iverilog -g2012 -o universal_sim.vvp -I opcode SystemTests/tb_universal.v System
     RegisterFile/register_file.v RegisterFile/reg32.v ^
     Memory/address_decoder.v Memory/ram.v Memory/itcm.v Memory/dtcm.v ^
     Memory/ram_async.v Memory/l1_cache.v Memory/addr_decomp.v Memory/cache_sram_way.v ^
+    Memory/cache_core_4way.v Memory/cache_core_8way.v Memory/lru_unit.v Memory/l2_cache.v ^
     Peripherals/io_peripheral_bus.v Peripherals/gpio_top.v Peripherals/timer_top.v Peripherals/uart_top.v ^
     Peripherals/interrupt_controller.v
 if %errorlevel% neq 0 exit /b 1

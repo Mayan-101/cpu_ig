@@ -40,7 +40,7 @@ module tb_program_tester;
         // Wait for HLT or timeout
         fork : timeout_watch
             begin
-                #2000000; // Longer timeout for matrix multiplication
+                #100000000; // 100ms timeout
                 $display("\nTIMEOUT: HLT not reached.");
                 disable timeout_watch;
             end

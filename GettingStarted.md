@@ -25,7 +25,7 @@ To verify your installation, run the `simple` program:
 
 - `ALU/`: Core arithmetic modules (Integer and Floating Point).
 - `Assembler/`: Python assembler.
-- `Memory/`: ROM and RAM modules.
+- `Memory/`: ITCM, DTCM, and Cache hierarchy modules.
 - `Pipeline/`: Top-level CPU core and pipeline stage registers.
 - `Programs/`: Assembly source files.
 - `Scripts/`: Automation scripts.

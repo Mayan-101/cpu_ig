@@ -28,26 +28,26 @@ module system_cache_top (
     );
 
     wire [31:0] itcm_data, dtcm_data, ram_data;
-    wire is_itcm = (pc < 32'h0001_0000);
+    wire is_itcm = (pc < 32'h0000_4000); // 16 KB
     wire is_ram  = (dmem_addr >= 32'h1000_0000 && dmem_addr <= 32'h10FF_FFFF);
-    wire is_dtcm = (dmem_addr >= 32'h0001_0000 && dmem_addr <= 32'h0001_FFFF);
-    wire is_itcm_data = (dmem_addr < 32'h0001_0000); // Allow data access to ITCM
+    wire is_dtcm = (dmem_addr >= 32'h0001_0000 && dmem_addr <= 32'h0001_1FFF); // 8 KB
+    wire is_itcm_data = (dmem_addr < 32'h0000_4000); // 16 KB
 
-    // ITCM (Instruction TCM) - 64 KB
+    // ITCM (Instruction TCM) - 16 KB
     itcm itcm_inst (
         .clk(clk),
-        .addr_a(dmem_addr[15:2]),
+        .addr_a(dmem_addr[13:2]),
         .din_a(dmem_wr_data),
         .we_a(dmem_we && is_itcm_data),
         .dout_a(itcm_data),
-        .addr_b(pc[15:2]),
+        .addr_b(pc[13:2]),
         .dout_b(instr_in)
     );
 
-    // DTCM (Data TCM) - 64 KB
+    // DTCM (Data TCM) - 8 KB
     dtcm dtcm_inst (
         .clk(clk),
-        .addr(dmem_addr[15:2]),
+        .addr(dmem_addr[12:2]),
         .din(dmem_wr_data),
         .we(dmem_we && is_dtcm),
         .dout(dtcm_data)

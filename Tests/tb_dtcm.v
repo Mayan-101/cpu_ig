@@ -2,7 +2,7 @@
 
 module tb_dtcm;
     reg clk;
-    reg [13:0] addr;
+    reg [10:0] addr;
     reg [31:0] din;
     reg we;
     wire [31:0] dout;

@@ -14,8 +14,9 @@ I hope you will read stuff below
 - **5-Stage Pipeline**: IF, ID, EX, MEM, WB.
 - **Hazard Unit**: Full data forwarding and load-use stall detection.
 - **FPU Integrated**: Support for floating-point arithmetic and conversions.
-- **Cache Integrated**: 4-way Set Associative, Write-Back, LRU replacement policy, Write-Allocate Cache.
-- **Automated Toolchain**: Integrated Python assembler and Icarus Verilog testbench.
+- **Tightly Coupled Memory**: Dedicated ITCM (16 KB) and DTCM (8 KB) for deterministic performance.
+- **Hierarchical Cache**: Multi-level 4-way (L1) and 8-way (L2) cache subsystem.
+- **Automated Toolchain**: Integrated Python assembler and Icarus Verilog regression suite.
 
 ## ToDo List
 - [ ] Add support for Interrupts (Intregation with SoC).

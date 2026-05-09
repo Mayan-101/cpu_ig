@@ -1,16 +1,20 @@
 `timescale 1ns / 1ps
 
-module l2_dcache (
+/**
+ * L2 Unified Cache (Optimized for 128 KB, 8-way)
+ * This module is used as a unified secondary cache for both I-misses and D-misses/Write-throughs.
+ */
+module l2_cache (
     input  wire clk,
     input  wire rst,
     
-    // CPU Interface
-    input  wire [31:0] d_addr,
+    // CPU/L1 Interface
+    input  wire [31:0] addr,
     input  wire [31:0] wr_data,
     input  wire we,
     input  wire re,
     output wire [31:0] rd_data,
-    output wire [63:0] line_out, // Added for L1 64b fill
+    output wire [63:0] line_out, 
     output wire hit,
     output wire stall,
     
@@ -25,20 +29,22 @@ module l2_dcache (
 
     wire [63:0] core_rd_data;
     wire core_hit;
-    wire [1:0] core_evict_way;
+    wire [2:0] core_evict_way;
     wire [63:0] core_evict_data;
     
     reg core_we;
     reg [63:0] core_wr_data;
     
-    cache_core_4way #(
-        .INDEX_WIDTH(1), // 2 sets
-        .TAG_WIDTH(28),
+    // 128 KB, 8-way, 8B line:
+    // Way = 16 KB. Sets = 2048. INDEX_WIDTH = 11. TAG_WIDTH = 18.
+    cache_core_8way #(
+        .INDEX_WIDTH(11), 
+        .TAG_WIDTH(18),
         .DATA_WIDTH(64)
     ) core (
         .clk(clk),
         .rst(rst),
-        .addr(d_addr),
+        .addr(addr),
         .wr_data(core_wr_data),
         .we(core_we),
         .re(re),
@@ -48,7 +54,7 @@ module l2_dcache (
         .evict_data(core_evict_data)
     );
 
-    wire [2:0] offset = d_addr[2:0];
+    wire [2:0] offset = addr[2:0];
 
     localparam IDLE = 2'b00, ALLOCATE = 2'b01, WRITE_WAIT = 2'b10;
     reg [1:0] state, next_state;
@@ -79,7 +85,7 @@ module l2_dcache (
                             
                             mem_req_reg = 1'b1;
                             mem_we_reg = 1'b1;
-                            mem_addr_reg = d_addr;
+                            mem_addr_reg = addr;
                             if (!mem_ready) begin
                                 stall_reg = 1'b1;
                                 next_state = WRITE_WAIT;
@@ -88,7 +94,7 @@ module l2_dcache (
                     end else begin
                         stall_reg = 1'b1;
                         mem_req_reg = 1'b1;
-                        mem_addr_reg = {d_addr[31:3], 3'b000};
+                        mem_addr_reg = {addr[31:3], 3'b000};
                         next_state = ALLOCATE;
                     end
                 end
@@ -97,7 +103,7 @@ module l2_dcache (
             ALLOCATE: begin
                 stall_reg = 1'b1;
                 mem_req_reg = 1'b1;
-                mem_addr_reg = {d_addr[31:3], 3'b000};
+                mem_addr_reg = {addr[31:3], 3'b000};
                 if (mem_ready) begin
                     core_we = 1'b1;
                     core_wr_data = mem_data;
@@ -109,11 +115,13 @@ module l2_dcache (
                 stall_reg = !mem_ready;
                 mem_req_reg = 1'b1;
                 mem_we_reg = 1'b1;
-                mem_addr_reg = d_addr;
+                mem_addr_reg = addr;
                 if (mem_ready) begin
                     next_state = IDLE;
                 end
             end
+            
+            default: next_state = IDLE;
         endcase
     end
 

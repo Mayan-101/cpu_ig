@@ -1,11 +1,11 @@
 `timescale 1ns / 1ps
 
-module tb_l2_dcache;
+module tb_l2_cache;
 
     reg clk;
     reg rst;
     
-    reg [31:0] d_addr;
+    reg [31:0] addr;
     reg [31:0] wr_data;
     reg we;
     reg re;
@@ -20,10 +20,10 @@ module tb_l2_dcache;
     wire mem_we;
     wire [31:0] mem_wr_data;
 
-    l2_dcache dut (
+    l2_cache dut (
         .clk(clk),
         .rst(rst),
-        .d_addr(d_addr),
+        .addr(addr),
         .wr_data(wr_data),
         .we(we),
         .re(re),
@@ -62,7 +62,7 @@ module tb_l2_dcache;
     task write_cache(input [31:0] a, input [31:0] d, output h);
     begin
         @(negedge clk);
-        d_addr = a;
+        addr = a;
         wr_data = d;
         we = 1;
         #1;
@@ -78,7 +78,7 @@ module tb_l2_dcache;
     task read_cache(input [31:0] a, output h, output [31:0] d);
     begin
         @(negedge clk);
-        d_addr = a;
+        addr = a;
         re = 1;
         #1;
         h = hit;
@@ -95,10 +95,10 @@ module tb_l2_dcache;
     reg [31:0] d_res;
 
     initial begin
-        $display("---7: L2 Data Cache Test ---");
+        $display("--- Unified L2 Cache Test ---");
         clk = 0;
         rst = 1;
-        d_addr = 0;
+        addr = 0;
         wr_data = 0;
         we = 0;
         re = 0;
@@ -126,7 +126,7 @@ module tb_l2_dcache;
         if (h_res) $display("FAIL: Expected miss on 20");
         if (d_res !== 32'h00000020) $display("FAIL: Expected 00000020 from memory, got %h", d_res);
 
-        $display("Test finished.");
+        $display("L2 Cache Test finished.");
         $finish;
     end
 

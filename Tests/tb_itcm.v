@@ -2,7 +2,7 @@
 
 module tb_itcm;
     reg clk;
-    reg [13:0] addr_a, addr_b;
+    reg [11:0] addr_a, addr_b;
     reg [31:0] din_a;
     reg we_a;
     wire [31:0] dout_a, dout_b;

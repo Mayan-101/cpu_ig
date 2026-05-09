@@ -1,6 +1,9 @@
 `timescale 1ns / 1ps
 
-module l1_cache (
+module l1_cache #(
+    parameter INDEX_WIDTH = 5,
+    parameter TAG_WIDTH = 24
+)(
     input  wire clk,
     input  wire reset,
     
@@ -23,14 +26,14 @@ module l1_cache (
     output wire [31:0] mem_wr_data
 );
 
-    wire [23:0] tag;
-    wire [4:0]  index;
+    wire [TAG_WIDTH-1:0] tag;
+    wire [INDEX_WIDTH-1:0] index;
     wire [2:0]  offset;
     
     addr_decomp #(
         .ADDR_WIDTH(32),
         .LINE_SIZE(8),
-        .NUM_SETS(32)
+        .NUM_SETS(1 << INDEX_WIDTH)
     ) decomp (
         .addr(addr),
         .tag(tag),
@@ -38,37 +41,32 @@ module l1_cache (
         .block_offset(offset)
     );
 
-    wire [23:0] rd_tag;
     wire [63:0] sram_rd_data;
-    wire valid;
-    wire dirty;
+    wire core_hit;
+    wire [1:0] evict_way;
+    wire [63:0] evict_data;
 
-    reg [23:0] sram_wr_tag;
-    reg [63:0] sram_wr_data;
-    reg sram_we;
-
-    cache_sram_way #(
-        .INDEX_WIDTH(5),
-        .TAG_WIDTH(24),
+    cache_core_4way #(
+        .INDEX_WIDTH(INDEX_WIDTH),
+        .TAG_WIDTH(TAG_WIDTH),
         .DATA_WIDTH(64)
-    ) sram (
+    ) core (
         .clk(clk),
-        .index(index),
-        .wr_tag(sram_wr_tag),
+        .rst(reset),
+        .addr(addr),
         .wr_data(sram_wr_data),
         .we(sram_we),
-        .rd_tag(rd_tag),
+        .re(re),
         .rd_data(sram_rd_data),
-        .valid(valid),
-        .dirty(dirty)
+        .hit(core_hit),
+        .evict_way(evict_way),
+        .evict_data(evict_data)
     );
 
     localparam IDLE = 2'b00, ALLOCATE = 2'b01, WRITE_WAIT = 2'b10;
     reg [1:0] state, next_state;
 
-    assign mem_wr_data = wr_data;
-
-    wire is_hit = (valid == 1'b1) && (rd_tag == tag);
+    wire is_hit = core_hit;
     assign hit = (state == IDLE) && (re || we) && is_hit;
     assign miss = (state == IDLE) && (re || we) && !is_hit;
     
@@ -79,11 +77,12 @@ module l1_cache (
     reg mem_we_reg;
     reg [31:0] mem_addr_reg;
     reg [31:0] mem_wr_data_reg;
+    reg [63:0] sram_wr_data;
+    reg sram_we;
     
     always @(*) begin
         next_state = state;
         sram_we = 1'b0;
-        sram_wr_tag = tag;
         sram_wr_data = sram_rd_data;
         mem_req_reg = 1'b0;
         mem_addr_reg = 32'b0;
@@ -111,7 +110,6 @@ module l1_cache (
                 mem_addr_reg = {addr[31:3], 3'b000};
                 if (mem_ready) begin
                     sram_we = 1'b1;
-                    sram_wr_tag = tag;
                     sram_wr_data = mem_data;
                     next_state = IDLE;
                 end
@@ -147,11 +145,6 @@ module l1_cache (
                 
             if (!(re || we))
                 serviced <= 1'b0;
-            
-            if ((re || we) && !reset && (state != IDLE || !serviced)) begin
-                $display("Time=%0t | Cache(%m) | State=%b | Addr=%h | Hit=%b | Stall=%b | Serviced=%b", 
-                         $time, state, addr, hit, stall, serviced);
-            end
         end
     end
 
