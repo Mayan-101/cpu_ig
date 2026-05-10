@@ -19,9 +19,9 @@ if %errorlevel% neq 0 exit /b 1
 
 echo [2/3] Compiling Universal Testbench...
 iverilog -g2012 -o universal_sim.vvp -I opcode ^
-    -I ALU -I Memory -I Pipeline -I RegisterFile -I Peripherals -I SystemTests ^
-    -y ALU -y Memory -y Pipeline -y RegisterFile -y Peripherals -y SystemTests ^
-    SystemTests/tb_universal.v SystemTests/system_cache_top.v ^
+    -I ALU -I Memory -I Pipeline -I RegisterFile -I Peripherals -I System_Testbenchs ^
+    -y ALU -y Memory -y Pipeline -y RegisterFile -y Peripherals -y System_Testbenchs ^
+    System_Testbenchs/tb_universal.v System_Testbenchs/system_cache_top.v ^
     ALU/alu_top.v ALU/alu_int.v ALU/cla_32bit.v ALU/cla_16bit.v ALU/cla_4bit.v ^
     ALU/full_adder.v ALU/half_adder.v ALU/sub_32bit.v ALU/bitwise_unit.v ^
     ALU/barrel_shifter.v ALU/comparator_unit.v ALU/booth_multiplier.v ^

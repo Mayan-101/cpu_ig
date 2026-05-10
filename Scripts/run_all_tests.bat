@@ -31,14 +31,14 @@ echo   Start Time: %DATE% %TIME%
 echo.
 
 :: Build Environment Configuration
-set "LIBS=-y ALU -y Memory -y Pipeline -y RegisterFile -y Peripherals -y SystemTests"
-set "INCS=-I opcode -I ALU -I Memory -I Pipeline -I RegisterFile -I Peripherals -I SystemTests"
+set "LIBS=-y ALU -y Memory -y Pipeline -y RegisterFile -y Peripherals -y System_Testbenchs"
+set "INCS=-I opcode -I ALU -I Memory -I Pipeline -I RegisterFile -I Peripherals -I System_Testbenchs"
 
 :: --- SECTION 1: UNIT TESTS ---
-echo %YELLOW%[SECTION 1/2] Component-Level Unit Tests (Tests/)%RESET%
+echo %YELLOW%[SECTION 1/2] Component-Level Unit Tests (Testbenchs/)%RESET%
 echo %WHITE%----------------------------------------------------------------------%RESET%
 
-for %%F in (Tests\tb_*.v) do (
+for %%F in (Testbenchs\tb_*.v) do (
     set /a TOTAL+=1
     set "TFILE=%%F"
     set "TNAME=%%~nF"
@@ -76,10 +76,10 @@ for %%F in (Tests\tb_*.v) do (
 echo.
 
 :: --- SECTION 2: SYSTEM TESTS ---
-echo %YELLOW%[SECTION 2/2] System-Level Integration Tests (SystemTests/)%RESET%
+echo %YELLOW%[SECTION 2/2] System-Level Integration Tests (System_Testbenchs/)%RESET%
 echo %WHITE%----------------------------------------------------------------------%RESET%
 
-for %%F in (SystemTests\tb_*.v) do (
+for %%F in (System_Testbenchs\tb_*.v) do (
     set /a TOTAL+=1
     set "TFILE=%%F"
     set "TNAME=%%~nF"
