@@ -137,10 +137,21 @@ module control_unit (
                 endcase
             end
 
-            // --- SYSTEM (ECALL/EBREAK) ---
+            // --- SYSTEM (CSR, ECALL, MRET) ---
             `OPC_SYSTEM: begin
-                // Minimal decode — could trigger exception
+                if (funct3 == `F3_ECALL) begin
+                    // ECALL or MRET
+                    // funct7=0000000, rs2=00000, rs1=00000, funct3=000, rd=00000
+                    // ECALL: imm=0x000, MRET: imm=0x302 (funct7=0x18, rs2=0x02)
+                    if (funct7 == 7'b0011000) is_reti = 1; // MRET
+                    else ; // ECALL handled in CSR unit
+                end else begin
+                    // CSR instructions
+                    reg_write = 1;
+                    wb_src    = 2'b11; // CSR data (reusing IO/CSR slot)
+                end
             end
+
 
             default: ;
         endcase

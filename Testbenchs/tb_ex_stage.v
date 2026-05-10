@@ -44,6 +44,7 @@ module tb_ex_stage;
     wire ex_mem_is_io;
     wire [1:0] ex_mem_wb_src;
     wire [2:0] ex_mem_funct3;
+    wire [31:0] ex_mem_pc_plus4;
     wire ex_mem_is_halt;
     wire take_branch;
     wire [31:0] branch_target;
@@ -87,10 +88,12 @@ module tb_ex_stage;
         .ex_mem_is_io(ex_mem_is_io),
         .ex_mem_wb_src(ex_mem_wb_src),
         .ex_mem_funct3(ex_mem_funct3),
+        .ex_mem_pc_plus4(ex_mem_pc_plus4),
         .ex_mem_is_halt(ex_mem_is_halt),
         .take_branch(take_branch),
         .branch_target(branch_target)
     );
+
 
 
     always #5 clk = ~clk;

@@ -44,9 +44,13 @@ module id_stage (
     output reg  [4:0]  id_ex_rs2_addr,
     output reg  [31:0] id_ex_pc_plus4,
     output reg  [31:0] id_ex_mepc,
+    output reg  [11:0] id_ex_csr_addr,
+    output reg  [4:0]  id_ex_imm5,
+    output reg         id_ex_ecall,
     output reg         id_ex_is_reti,
     output reg         id_ex_is_halt
 );
+
 
     // --- RISC-V Field Extraction ---
     wire [6:0] opcode = if_id_instr[6:0];
@@ -83,6 +87,11 @@ module id_stage (
     assign rs2_addr = if_id_instr[24:20];
     wire [4:0] rd_addr_in = if_id_instr[11:7];
 
+    // --- Field Extraction ---
+    wire [11:0] csr_addr_in = if_id_instr[31:20];
+    wire [4:0]  imm5_in     = if_id_instr[19:15];
+    wire        ecall_in    = (opcode == `OPC_SYSTEM) && (funct3 == `F3_ECALL) && (if_id_instr[31:20] == `IMM_ECALL);
+
     // --- Pipeline Register ---
     always @(posedge clk) begin
         if (rst || flush) begin
@@ -106,6 +115,9 @@ module id_stage (
             id_ex_rs2_addr  <= 5'd0;
             id_ex_pc_plus4  <= 32'd0;
             id_ex_mepc      <= 32'd0;
+            id_ex_csr_addr  <= 12'd0;
+            id_ex_imm5      <= 5'd0;
+            id_ex_ecall     <= 0;
             id_ex_is_reti   <= 0;
             id_ex_is_halt   <= 0;
         end else if (!stall) begin
@@ -129,9 +141,13 @@ module id_stage (
             id_ex_rs2_addr  <= rs2_addr;
             id_ex_pc_plus4  <= if_id_pc_plus4;
             id_ex_mepc      <= mepc;
+            id_ex_csr_addr  <= csr_addr_in;
+            id_ex_imm5      <= imm5_in;
+            id_ex_ecall     <= ecall_in;
             id_ex_is_reti   <= is_reti;
             id_ex_is_halt   <= is_halt;
         end
+
     end
 endmodule
 

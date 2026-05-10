@@ -63,8 +63,9 @@ module tb_peripherals();
         #20 rst = 0;
 
         $monitor("Time=%0t | PC=%h | x5=%d | IRQ=%b | IE=%b | MEPC=%h | IT=%b", 
-                 $time, uut.cpu.ibus_addr, uut.cpu.rf.gp_regs[5].reg_inst.q, uut.irq_signal, uut.cpu.psw[31], 
-                 uut.cpu.mepc, uut.cpu.int_taken);
+                 $time, uut.cpu.ibus_addr, uut.cpu.rf.gp_regs[5].reg_inst.q, uut.irq_signal, uut.cpu.mstatus[3], 
+                 uut.cpu.mepc, uut.cpu.trap_taken);
+
 
         #10000; // Increased timeout for interrupt to trigger
         
@@ -75,8 +76,9 @@ module tb_peripherals();
         $display("Testing IO Slot 5 (0x40000400)...");
         // We can't easily force a load from here without writing more assembly, 
         // but we can check if the bus decoder works by looking at the wires.
-        if (uut.io_bus.io_addr == 32'h40000400 && uut.io_bus.slot5_sel)
+        if (uut.io_bus.io_addr == 32'h40000400 && uut.io_bus.slot_sel[5])
              $display("Slot 5 Selected correctly.");
+
 
         if (uut.cpu.rf.gp_regs[5].reg_inst.q > 0)
             $display("SUCCESS: Interrupt taken and x5 incremented!");

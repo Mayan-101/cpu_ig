@@ -28,16 +28,48 @@ module io_peripheral_bus (
     output wire        irq_out
 );
 
-    // Peripheral Selection Signals (using relative addresses within 0x000-0xFFF)
-    wire gpio_sel  = (io_addr[11:8] == 4'h0); // 0x000-0x0FF
-    wire timer_sel = (io_addr[11:8] == 4'h1); // 0x100-0x1FF
-    wire uart_sel  = (io_addr[11:8] == 4'h2); // 0x200-0x2FF
-    wire intc_sel  = (io_addr[11:8] == 4'h3); // 0x300-0x3FF
-    wire slot5_sel = (io_addr[11:8] == 4'h4); // 0x400-0x4FF (New Slot)
+    // Extensible Peripheral Slots
+    localparam NUM_SLOTS = 16;
+    wire [NUM_SLOTS-1:0] slot_sel;
+    wire [31:0] slot_rdata [0:NUM_SLOTS-1];
+
+    generate
+        genvar i;
+        for (i = 0; i < NUM_SLOTS; i = i + 1) begin : sel_gen
+            assign slot_sel[i] = (io_addr[11:8] == i[3:0]);
+        end
+    endgenerate
+
+    // Read Data Mux
+    integer k;
+    always @(*) begin
+        io_rdata = 32'd0;
+        for (k = 0; k < NUM_SLOTS; k = k + 1) begin
+            if (slot_sel[k]) io_rdata = slot_rdata[k];
+        end
+    end
+
+    // --- Slot Assignments ---
+    assign slot_rdata[0] = gpio_rdata;
+    assign slot_rdata[1] = timer_rdata;
+    assign slot_rdata[2] = uart_rdata;
+    assign slot_rdata[3] = intc_rdata;
+    
+    // Unassigned slots
+    generate
+        for (i = 4; i < NUM_SLOTS; i = i + 1) begin : unassigned_slots
+            assign slot_rdata[i] = (i == 4) ? 32'hDEAD_BEEF : 32'd0;
+        end
+    endgenerate
+    
+    // Selection aliases for legacy wiring
+    wire gpio_sel  = slot_sel[0];
+    wire timer_sel = slot_sel[1];
+    wire uart_sel  = slot_sel[2];
+    wire intc_sel  = slot_sel[3];
 
     // Read Data wires
     wire [31:0] gpio_rdata, timer_rdata, uart_rdata, intc_rdata;
-    wire [31:0] slot5_rdata = 32'hDEAD_BEEF; // Default for unassigned slot
     
     // IRQ wires from peripherals
     wire timer0_irq, timer1_irq, uart_irq;
@@ -79,14 +111,5 @@ module io_peripheral_bus (
         .irq_out(irq_out)
     );
 
-    // Read Data Mux
-    always @(*) begin
-        if (gpio_sel)       io_rdata = gpio_rdata;
-        else if (timer_sel) io_rdata = timer_rdata;
-        else if (uart_sel)  io_rdata = uart_rdata;
-        else if (intc_sel)  io_rdata = intc_rdata;
-        else if (slot5_sel) io_rdata = slot5_rdata;
-        else                io_rdata = 32'd0;
-    end
 
 endmodule

@@ -7,8 +7,8 @@ module tb_wb_stage;
     reg [4:0]  mem_wb_rd_addr;
     reg        mem_wb_reg_write;
     reg [1:0]  mem_wb_wb_src;
-    reg        mem_wb_is_io;
-    reg [31:0] io_data_in;
+    reg [31:0] mem_wb_pc_plus4;
+    reg [31:0] ext_data_in;
     
     wire [4:0]  rf_wr_addr;
     wire [31:0] rf_wr_data;
@@ -20,12 +20,13 @@ module tb_wb_stage;
         .mem_wb_rd_addr(mem_wb_rd_addr),
         .mem_wb_reg_write(mem_wb_reg_write),
         .mem_wb_wb_src(mem_wb_wb_src),
-        .mem_wb_is_io(mem_wb_is_io),
-        .io_data_in(io_data_in),
+        .mem_wb_pc_plus4(mem_wb_pc_plus4),
+        .ext_data_in(ext_data_in),
         .rf_wr_addr(rf_wr_addr),
         .rf_wr_data(rf_wr_data),
         .rf_we(rf_we)
     );
+
 
     initial begin
         $display("--- RISC-V Write Back Stage Test ---");
@@ -34,8 +35,9 @@ module tb_wb_stage;
         mem_wb_rd_addr = 5'd0;
         mem_wb_reg_write = 0;
         mem_wb_wb_src = 2'b00;
-        mem_wb_is_io = 0;
-        io_data_in = 32'h00000000;
+        mem_wb_pc_plus4 = 32'h0;
+        ext_data_in = 32'h00000000;
+
         
         // Test 1: ALU result
         #5;
@@ -55,13 +57,22 @@ module tb_wb_stage;
         $display("MEM Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
         if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'hDEADBEEF) $display("FAIL: MEM Write");
 
-        // Test 3: I/O result
+        // Test 3: EXT result
         #5;
-        io_data_in = 32'h11223344;
-        mem_wb_wb_src = 2'b11; // I/O
+        ext_data_in = 32'h11223344;
+        mem_wb_wb_src = 2'b11; // EXT
         #1;
-        $display("I/O Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
-        if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'h11223344) $display("FAIL: I/O Write");
+        $display("EXT Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
+        if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'h11223344) $display("FAIL: EXT Write");
+
+        // Test 4: PC+4 result
+        #5;
+        mem_wb_pc_plus4 = 32'hAAAA_BBBB;
+        mem_wb_wb_src = 2'b10; // PC+4
+        #1;
+        $display("PC+4 Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
+        if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'hAAAA_BBBB) $display("FAIL: PC+4 Write");
+
 
         $display("Test finished.");
         $finish;

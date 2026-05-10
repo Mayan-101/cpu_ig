@@ -8,10 +8,10 @@ module wb_stage (
     input  wire [4:0]  mem_wb_rd_addr,
     input  wire         mem_wb_reg_write,
     input  wire [1:0]  mem_wb_wb_src,
-    input  wire         mem_wb_is_io,
+    input  wire [31:0] mem_wb_pc_plus4,
 
-    // I/O Inputs
-    input  wire [31:0] io_data_in,
+    // I/O and CSR Inputs
+    input  wire [31:0] ext_data_in,
 
     // Register File Write-Back Outputs
     output wire [4:0]  rf_wr_addr,
@@ -23,7 +23,9 @@ module wb_stage (
     assign rf_we      = mem_wb_reg_write;
 
     assign rf_wr_data = (mem_wb_wb_src == 2'b01) ? mem_wb_mem_data :
-                        (mem_wb_wb_src == 2'b11) ? io_data_in :
-                        mem_wb_alu_result; // Default ALU
+                        (mem_wb_wb_src == 2'b10) ? mem_wb_pc_plus4 :
+                        (mem_wb_wb_src == 2'b11) ? ext_data_in :
+                        mem_wb_alu_result; // Default ALU (00)
 
 endmodule
+

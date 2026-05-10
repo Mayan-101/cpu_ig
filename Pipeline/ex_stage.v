@@ -55,6 +55,7 @@ module ex_stage (
     output reg  ex_mem_is_io,
     output reg  [1:0] ex_mem_wb_src,
     output reg  [2:0] ex_mem_funct3,
+    output reg  [31:0] ex_mem_pc_plus4,
     output reg         ex_mem_is_halt,
 
     // Branch Outcome
@@ -77,9 +78,10 @@ module ex_stage (
     // --- ALU operation routing ---
     // For the integer ALU, we pass opcode/funct3/funct7 through to alu_top
     wire is_mul = (id_ex_opcode == `OPC_OP) && (id_ex_funct7 == `F7_MULDIV) &&
-                  (id_ex_funct3 == `F3_MUL || id_ex_funct3 == `F3_MULH);
+                  (id_ex_funct3 == `F3_MUL || id_ex_funct3 == `F3_MULH || id_ex_funct3 == `F3_MULHSU || id_ex_funct3 == `F3_MULHU);
     wire is_div = (id_ex_opcode == `OPC_OP) && (id_ex_funct7 == `F7_MULDIV) &&
-                  (id_ex_funct3 == `F3_DIV || id_ex_funct3 == `F3_REM);
+                  (id_ex_funct3 == `F3_DIV || id_ex_funct3 == `F3_DIVU || id_ex_funct3 == `F3_REM || id_ex_funct3 == `F3_REMU);
+
     wire is_multi_cycle = is_mul || is_div || id_ex_is_float;
 
     wire [31:0] alu_result;
@@ -145,6 +147,7 @@ module ex_stage (
             ex_mem_is_io      <= 0;
             ex_mem_wb_src     <= 0;
             ex_mem_funct3     <= 0;
+            ex_mem_pc_plus4   <= 0;
             ex_mem_is_halt    <= 0;
         end else if (!(alu_stall || stall_in)) begin
             ex_mem_alu_result <= alu_result;
@@ -157,8 +160,10 @@ module ex_stage (
             ex_mem_is_io      <= id_ex_is_io;
             ex_mem_wb_src     <= id_ex_wb_src;
             ex_mem_funct3     <= id_ex_funct3;
+            ex_mem_pc_plus4   <= id_ex_pc_plus4;
             ex_mem_is_halt    <= id_ex_is_halt;
         end
+
     end
 
 endmodule

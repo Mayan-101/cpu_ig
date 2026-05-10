@@ -12,6 +12,7 @@ module tb_id_stage;
     reg [31:0] if_id_pc_plus4;
     reg [31:0] regfile_rs1;
     reg [31:0] regfile_rs2;
+    reg [31:0] mepc;
     
     wire [4:0] rs1_addr;
     wire [4:0] rs2_addr;
@@ -37,8 +38,13 @@ module tb_id_stage;
     wire [4:0]  id_ex_rs1_addr;
     wire [4:0]  id_ex_rs2_addr;
     wire [31:0] id_ex_pc_plus4;
+    wire [31:0] id_ex_mepc;
+    wire [11:0] id_ex_csr_addr;
+    wire [4:0]  id_ex_imm5;
+    wire        id_ex_ecall;
     wire id_ex_is_reti;
     wire id_ex_is_halt;
+
 
     id_stage dut (
         .clk(clk),
@@ -49,6 +55,7 @@ module tb_id_stage;
         .if_id_pc_plus4(if_id_pc_plus4),
         .regfile_rs1(regfile_rs1),
         .regfile_rs2(regfile_rs2),
+        .mepc(mepc),
         .rs1_addr(rs1_addr),
         .rs2_addr(rs2_addr),
         .id_ex_opcode(id_ex_opcode),
@@ -70,9 +77,14 @@ module tb_id_stage;
         .id_ex_rs1_addr(id_ex_rs1_addr),
         .id_ex_rs2_addr(id_ex_rs2_addr),
         .id_ex_pc_plus4(id_ex_pc_plus4),
+        .id_ex_mepc(id_ex_mepc),
+        .id_ex_csr_addr(id_ex_csr_addr),
+        .id_ex_imm5(id_ex_imm5),
+        .id_ex_ecall(id_ex_ecall),
         .id_ex_is_reti(id_ex_is_reti),
         .id_ex_is_halt(id_ex_is_halt)
     );
+
 
     always #5 clk = ~clk;
 

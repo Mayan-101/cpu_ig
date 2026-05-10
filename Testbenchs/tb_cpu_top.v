@@ -18,13 +18,17 @@ module tb_cpu_top();
     
     wire [31:0] dbus_io_rdata = 32'd0;
 
+    wire halt_cpu;
     cpu_top uut (
         .clk(clk), .rst(rst),
         .ibus_addr(pc_bus), .ibus_rdata(instr_bus), .ibus_ready(icache_ready),
         .dbus_addr(dbus_addr), .dbus_wdata(dbus_wdata), .dbus_we(dbus_we), .dbus_re(dbus_re),
         .dbus_rdata(dbus_rdata), .dbus_ready(dcache_ready),
-        .dbus_io_rdata(dbus_io_rdata)
+        .dbus_io_rdata(dbus_io_rdata),
+        .irq(1'b0),
+        .halt_cpu(halt_cpu)
     );
+
 
 
     // Mock Instruction Memory (Word Indexed)

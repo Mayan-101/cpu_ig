@@ -29,10 +29,10 @@ module cpu_top (
 );
 
     // CSR outputs (from csr_unit)
-    wire [31:0] psw;
     wire [31:0] mtvec, mepc, mstatus;
-    wire        int_taken;
-
+    wire        trap_taken;
+    wire [31:0] trap_pc;
+    wire [31:0] csr_rdata;
 
     wire [31:0] branch_target;
     wire        take_branch;
@@ -45,7 +45,7 @@ module cpu_top (
     reg  [31:0] pc_reg;
     wire [31:0] pc_plus4 = pc_reg + 4;
     wire [31:0] pc_next = (pc_src == 2'b01) ? branch_target :
-                          (pc_src == 2'b10) ? mtvec : pc_plus4;
+                          (pc_src == 2'b10) ? trap_pc : pc_plus4;
 
     wire cache_stall; // Forward declaration
 
@@ -87,9 +87,10 @@ module cpu_top (
     wire        id_ex_is_reti;
     wire        id_ex_is_halt;
 
-    wire [31:0] csr_addr, csr_wr_data;
-    wire csr_we;
     wire [31:0] id_ex_mepc;
+    wire [11:0] id_ex_csr_addr;
+    wire [4:0]  id_ex_imm5;
+    wire        id_ex_ecall;
 
     id_stage id_inst (
         .clk(clk), .rst(rst), .flush(flush_ID || nop_inject_haz), .stall(pipe_stall),
@@ -104,7 +105,7 @@ module cpu_top (
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_rs1_addr(id_ex_rs1_addr),
         .id_ex_rs2_addr(id_ex_rs2_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
-        .id_ex_mepc(id_ex_mepc),
+        .id_ex_mepc(id_ex_mepc), .id_ex_csr_addr(id_ex_csr_addr), .id_ex_imm5(id_ex_imm5), .id_ex_ecall(id_ex_ecall),
         .id_ex_is_reti(id_ex_is_reti),
         .id_ex_is_halt(id_ex_is_halt)
     );
@@ -112,12 +113,21 @@ module cpu_top (
     csr_unit csr_inst (
         .clk(clk), .rst(rst),
         .stall(cache_stall),
-        .csr_addr(csr_addr), .csr_wr_data(csr_wr_data), .csr_we(csr_we),
-        .ex_opcode(id_ex_opcode), .ex_funct3(id_ex_funct3),
-        .irq(irq), .pc(ibus_addr),
-        .psw(psw), .mtvec(mtvec), .mepc(mepc), .mstatus(mstatus),
-        .int_taken(int_taken)
+        .ex_opcode(id_ex_opcode), .ex_funct3(id_ex_funct3), .ex_csr_addr(id_ex_csr_addr),
+        .ex_rs1_data(id_ex_rs1_data), .ex_imm5(id_ex_imm5),
+        .irq(irq), .ecall_in(id_ex_ecall), .mret_in(id_ex_is_reti),
+        .pc_epc(id_ex_pc_plus4 - 4),
+        .pc_fec(pc_reg), // Return to current Fetch PC for interrupts
+        .ext_we(dbus_we && (dbus_addr[31:12] == 20'h80000)),
+        .ext_addr(dbus_addr[11:0]),
+        .ext_wdata(dbus_wdata),
+
+        .csr_rdata(csr_rdata),
+        .mtvec(mtvec), .mepc(mepc), .mstatus(mstatus),
+        .trap_taken(trap_taken), .trap_pc(trap_pc)
     );
+
+
 
     // ==== [3] Execute (EX) Stage ====
     wire [1:0] forwardA, forwardB;
@@ -128,6 +138,7 @@ module cpu_top (
     wire [2:0] ex_mem_funct3;
     wire [31:0] rf_wr_data;
     wire ex_mem_is_halt;
+    wire [31:0] ex_mem_pc_plus4;
 
     ex_stage ex_inst (
         .clk(clk), .rst(rst),
@@ -138,7 +149,7 @@ module cpu_top (
         .id_ex_is_reti(id_ex_is_reti),
         .id_ex_wb_src(id_ex_wb_src),
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
-        .id_ex_imm32(id_ex_imm32), .id_ex_mepc(id_ex_mepc), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
+        .id_ex_imm32(id_ex_imm32), .id_ex_mepc(mepc), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
         .fwd_ex_mem_data(ex_mem_mem_read ? dbus_rdata : (ex_mem_is_io ? dbus_io_rdata : ex_mem_alu_result)),
         .fwd_mem_wb_data(rf_wr_data),
         .forwardA(forwardA), .forwardB(forwardB),
@@ -148,7 +159,7 @@ module cpu_top (
         .ex_mem_wr_data(ex_mem_wr_data), .ex_mem_rd_addr(ex_mem_rd_addr),
         .ex_mem_mem_read(ex_mem_mem_read), .ex_mem_mem_write(ex_mem_mem_write),
         .ex_mem_reg_write(ex_mem_reg_write), .ex_mem_is_io(ex_mem_is_io), .ex_mem_wb_src(ex_mem_wb_src),
-        .ex_mem_funct3(ex_mem_funct3),
+        .ex_mem_funct3(ex_mem_funct3), .ex_mem_pc_plus4(ex_mem_pc_plus4),
         .ex_mem_is_halt(ex_mem_is_halt),
         .take_branch(take_branch), .branch_target(branch_target)
     );
@@ -158,6 +169,7 @@ module cpu_top (
     wire [4:0]  mem_wb_rd_addr;
     wire mem_wb_reg_write, mem_wb_is_io;
     wire [1:0]  mem_wb_wb_src;
+    wire [31:0] mem_wb_pc_plus4, mem_wb_ext_data;
     wire mem_wb_is_halt;
 
     reg halt_latch;
@@ -171,6 +183,7 @@ module cpu_top (
         .clk(clk), .rst(rst),
         .ex_mem_alu_result(ex_mem_alu_result), .ex_mem_zero(ex_mem_zero),
         .ex_mem_wr_data(ex_mem_wr_data), .ex_mem_rd_addr(ex_mem_rd_addr),
+        .ex_mem_pc_plus4(ex_mem_pc_plus4), .ex_mem_ext_data(csr_rdata),
         .ex_mem_mem_read(ex_mem_mem_read), .ex_mem_mem_write(ex_mem_mem_write),
         .ex_mem_reg_write(ex_mem_reg_write), .ex_mem_is_io(ex_mem_is_io), .ex_mem_wb_src(ex_mem_wb_src),
         .ex_mem_funct3(ex_mem_funct3),
@@ -178,10 +191,10 @@ module cpu_top (
         .dcache_data(dbus_rdata), .dcache_hit(dbus_ready),
         .dcache_addr(dbus_addr), .dcache_wr_data(dbus_wdata), .dcache_we(dbus_we), .dcache_re(dbus_re),
         .cache_stall(cache_stall),
-        .csr_addr(csr_addr), .csr_wr_data(csr_wr_data), .csr_we(csr_we),
         .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
         .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
-        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
+        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_pc_plus4(mem_wb_pc_plus4), .mem_wb_ext_data(mem_wb_ext_data),
+        .mem_wb_is_io(mem_wb_is_io),
         .mem_wb_is_halt(mem_wb_is_halt)
     );
 
@@ -192,10 +205,11 @@ module cpu_top (
     wb_stage wb_inst (
         .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
         .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
-        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
-        .io_data_in(dbus_io_rdata),
+        .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_pc_plus4(mem_wb_pc_plus4),
+        .ext_data_in(mem_wb_is_io ? dbus_io_rdata : mem_wb_ext_data),
         .rf_wr_addr(rf_wr_addr), .rf_wr_data(rf_wr_data), .rf_we(rf_we)
     );
+
 
 
     // ==== Hazard Management and Core Units ====
@@ -223,8 +237,9 @@ module cpu_top (
     branch_hazard_handler bhh (
         .take_branch(take_branch), .branch_target(branch_target),
         .pc_src(bhh_pc_src), .flush_IF(flush_IF), .flush_ID(flush_ID),
-        .int_taken(int_taken)
+        .int_taken(trap_taken)
     );
-    assign pc_src = (int_taken == 1'b1) ? 2'b10 : {1'b0, (bhh_pc_src == 1'b1)};
+    assign pc_src = (trap_taken == 1'b1) ? 2'b10 : {1'b0, (bhh_pc_src == 1'b1)};
+
 
 endmodule

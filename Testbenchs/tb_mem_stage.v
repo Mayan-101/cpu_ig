@@ -11,6 +11,9 @@ module tb_mem_stage;
     reg [31:0] ex_mem_wr_data;
     reg [4:0]  ex_mem_rd_addr;
     
+    reg [31:0] ex_mem_pc_plus4;
+    reg [31:0] ex_mem_ext_data;
+    
     reg ex_mem_mem_read;
     reg ex_mem_mem_write;
     reg ex_mem_reg_write;
@@ -33,6 +36,8 @@ module tb_mem_stage;
     wire [4:0]  mem_wb_rd_addr;
     wire mem_wb_reg_write;
     wire [1:0]  mem_wb_wb_src;
+    wire [31:0] mem_wb_pc_plus4;
+    wire [31:0] mem_wb_ext_data;
     wire mem_wb_is_io;
     wire mem_wb_is_halt;
 
@@ -43,6 +48,8 @@ module tb_mem_stage;
         .ex_mem_zero(ex_mem_zero),
         .ex_mem_wr_data(ex_mem_wr_data),
         .ex_mem_rd_addr(ex_mem_rd_addr),
+        .ex_mem_pc_plus4(ex_mem_pc_plus4),
+        .ex_mem_ext_data(ex_mem_ext_data),
         .ex_mem_mem_read(ex_mem_mem_read),
         .ex_mem_mem_write(ex_mem_mem_write),
         .ex_mem_reg_write(ex_mem_reg_write),
@@ -62,9 +69,12 @@ module tb_mem_stage;
         .mem_wb_rd_addr(mem_wb_rd_addr),
         .mem_wb_reg_write(mem_wb_reg_write),
         .mem_wb_wb_src(mem_wb_wb_src),
+        .mem_wb_pc_plus4(mem_wb_pc_plus4),
+        .mem_wb_ext_data(mem_wb_ext_data),
         .mem_wb_is_io(mem_wb_is_io),
         .mem_wb_is_halt(mem_wb_is_halt)
     );
+
 
     always #5 clk = ~clk;
 

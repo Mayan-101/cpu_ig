@@ -26,15 +26,12 @@ module barrel_shifter (
                     result = $signed(a) >>> shamt;
                     carry_out = a[shamt - 1];
                 end
-                2'b11: begin // ROR: Rotate Right
-                    result = (a >> shamt) | (a << (32 - shamt));
-                    carry_out = a[shamt - 1];
-                end
                 default: begin
                     result = a;
                     carry_out = 1'b0;
                 end
             endcase
+
         end
     end
 
