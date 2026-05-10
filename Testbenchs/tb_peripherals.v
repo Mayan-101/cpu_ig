@@ -42,7 +42,7 @@ module tb_peripherals();
         uut.itcm_inst.mem[6] = 32'h10312023;
         uut.itcm_inst.mem[7] = 32'h00100193;
         uut.itcm_inst.mem[8] = 32'h10312423;
-        uut.itcm_inst.mem[9] = 32'h00100193;
+        uut.itcm_inst.mem[9] = 32'h00200193;
         uut.itcm_inst.mem[10] = 32'h30312023;
         uut.itcm_inst.mem[11] = 32'h0000006f;
         
