@@ -10,7 +10,7 @@ module tb_address_decoder();
     wire itcm_sel, dtcm_sel, ram_sel, io_sel, sys_ctrl_sel;
     wire [11:0] itcm_addr;
     wire [10:0] dtcm_addr;
-    wire [21:0] ram_addr;
+    wire [22:0] ram_addr;
     wire [11:0] io_addr, sys_addr;
     wire itcm_we, dtcm_we, ram_we, io_we, sys_ctrl_we;
 
@@ -67,10 +67,25 @@ module tb_address_decoder();
         addr = 32'h1000_0000;
         we = 1;
         #5;
-        if (!ram_sel || ram_addr !== 22'd0 || ram_we !== 1'b1)
+        if (!ram_sel || ram_addr !== 23'd0 || ram_we !== 1'b1)
             $display("FAIL: Test 4 (RAM addr 1000_0000)");
         else
             $display("PASS: Test 4 (RAM addr 1000_0000)");
+
+        // Test 5: RAM Address Near Upper Bound (0x11FF_FFFC)
+        addr = 32'h11FF_FFFC;
+        we = 1;
+        #5;
+        if (!ram_sel || ram_addr !== 23'h7F_FFFF || ram_we !== 1'b1)
+            $display("FAIL: Test 5 (RAM addr 11FF_FFFC) ram_addr=%h", ram_addr);
+        else
+            $display("PASS: Test 5 (RAM addr 11FF_FFFC)");
+
+        // Test 6: RAM Out of Range (0x1200_0000)
+        addr = 32'h1200_0000;
+        #5;
+        if (ram_sel) $display("FAIL: Test 6 (RAM OOR)");
+        else $display("PASS: Test 6 (RAM OOR)");
 
         #10;
         $display("All Address Decoder tests completed.");

@@ -1,8 +1,8 @@
 `timescale 1ns / 1ps
 
 module ram #(
-    parameter ADDR_WIDTH = 14,
-    parameter DEPTH = 16384
+    parameter ADDR_WIDTH = 23,
+    parameter DEPTH = 8388608
 )(
     input wire clk,
     input wire we,

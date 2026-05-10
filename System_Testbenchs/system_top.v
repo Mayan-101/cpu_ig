@@ -38,7 +38,7 @@ module system_top (
     wire itcm_sel_d, dtcm_sel_d, ram_sel_d, io_sel_d, sys_sel_d;
     wire [11:0] itcm_addr_d;
     wire [10:0] dtcm_addr_d;
-    wire [21:0] ram_addr_d;
+    wire [22:0] ram_addr_d;
     wire [11:0] io_addr_d;
     wire itcm_we_d, dtcm_we_d, ram_we_d, io_we_d;
 
@@ -82,11 +82,11 @@ module system_top (
         .dout(dtcm_rd_data)
     );
 
-    // Main RAM - 16 MB
-    ram_async #(.ADDR_WIDTH(22), .DEPTH(4194304)) ram_inst (
+    // Main RAM - 32 MB
+    ram_async #(.ADDR_WIDTH(23), .DEPTH(8388608)) ram_inst (
         .clk(clk), .addr(ram_addr_d), .wr_data(dmem_wr_data),
         .we(ram_we_d), .rd_data(ram_rd_data),
-        .addr_b(22'd0), .rd_data_b()
+        .addr_b(23'd0), .rd_data_b()
     );
 
     //  I/O Peripheral Bus 

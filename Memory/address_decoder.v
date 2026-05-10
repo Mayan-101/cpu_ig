@@ -15,7 +15,7 @@ module address_decoder (
     // Extracted local addresses (word-aligned)
     output wire [11:0] itcm_addr, // 16 KB = 4096 words
     output wire [10:0] dtcm_addr, // 8 KB = 2048 words
-    output wire [21:0] ram_addr,  // 16 MB = 4194304 words
+    output wire [22:0] ram_addr,  // 32 MB = 8388608 words
     output wire [11:0] io_addr,   // 4 KB peripheral space
     output wire [11:0] sys_addr,  // 4 KB system control space
     
@@ -36,14 +36,14 @@ module address_decoder (
     
     assign itcm_sel     = (addr >= 32'h0000_0000 && addr <= 32'h0000_3FFF);
     assign dtcm_sel     = (addr >= 32'h0001_0000 && addr <= 32'h0001_1FFF);
-    assign ram_sel      = (addr >= 32'h1000_0000 && addr <= 32'h10FF_FFFF);
+    assign ram_sel      = (addr >= 32'h1000_0000 && addr <= 32'h11FF_FFFF);
     assign io_sel       = (addr >= 32'h4000_0000 && addr <= 32'h4FFF_FFFF);
     assign sys_ctrl_sel = (addr >= 32'h8000_0000 && addr <= 32'h8000_0FFF);
     
     // Local address extraction
     assign itcm_addr = addr[13:2]; // 16 KB (4096 words -> 12 bits)
     assign dtcm_addr = addr[12:2]; // 8 KB (2048 words -> 11 bits)
-    assign ram_addr  = addr[23:2]; // 16 MB (word-aligned)
+    assign ram_addr  = addr[24:2]; // 32 MB (word-aligned)
     assign io_addr   = addr[11:0];
     assign sys_addr  = addr[11:0];
     
