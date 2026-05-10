@@ -1,3 +1,5 @@
+# Usage Guide
+
 ## Quick Start
 
 1.  **Modify Code**: Edit the `.asm` file in `Programs/`.
@@ -7,26 +9,36 @@
     .\Scripts\test_program.bat <program_name>
     ```
 
-### Memory Map for Development
-- **Code (ITCM)**: `0x0000_0000` (Fastest for instructions)
-- **Stack/Data (DTCM)**: `0x0001_0000` (Fastest for stack and local data)
-- **Main Data (RAM)**: `0x1000_0000` (Cached)
+## Toolchain Compatibility
 
-### Example
-To test bubble sort with your own data:
-1.  Put your hex values in `Programs/ram_init.mem` (Loaded at `0x1000_0000`).
+The architecture is now compatible with standard RISC-V toolchains. You can use `riscv32-unknown-elf-gcc` to compile C code for this processor.
+
+### Compiling C for the CPU
+Example command for GCC:
+```bash
+riscv32-unknown-elf-gcc -march=rv32imf -mabi=ilp32f -o program.elf main.c
+```
+
+### Assembler
+While standard `as` can be used, we provide a custom `assembler.py` that supports our custom extensions (`HLT`, `IN`, `OUT`, etc.) while maintaining standard RISC-V RV32I/M/F syntax.
+
+```bash
+python Assembler/assembler.py <input.asm> <output.mem>
+```
+
+## Memory Map for Development
+- **Code (ITCM)**: `0x0000_0000` (Map to `.text`)
+- **Stack/Data (DTCM)**: `0x0001_0000` (Fast stack access)
+- **Main Data (RAM)**: `0x1000_0000` (Cached main memory)
+
+## Examples
+To test bubble sort:
+1.  Initialize data in `Programs/ram_init.mem`.
 2.  Run: `.\Scripts\test_program.bat bubble_sort`
 
 ### Script Parameters
 `.\Scripts\test_program.bat <name> [dump_start] [dump_end] [hex_mode]`
 
 - **`<name>`**: The `.asm` filename (without extension).
-- **`[dump_start/end]`**: The decimal range of RAM to display at the end.
-- **`[hex_mode]`**: Set to `1` for Hex output, `0` for Decimal.
-
-### Example Commands
-- **Basic Run**: `.\Scripts\test_program.bat bubble_sort 0 10 0`
-- **Floating Point Test**: `.\Scripts\test_program.bat float_add 0 10 1`
-
-> **Note**: The script automatically re-assembles your `.asm` into a `.mem` file before each run. Only edit `.asm` (for code) and `ram_init.mem` (for data).
-
+- **`[dump_start/end]`**: RAM range to display at completion.
+- **`[hex_mode]`**: `1` for Hex, `0` for Decimal.

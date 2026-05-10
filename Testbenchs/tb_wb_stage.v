@@ -4,13 +4,13 @@ module tb_wb_stage;
 
     reg [31:0] mem_wb_alu_result;
     reg [31:0] mem_wb_mem_data;
-    reg [5:0]  mem_wb_rd_addr;
+    reg [4:0]  mem_wb_rd_addr;
     reg        mem_wb_reg_write;
     reg [1:0]  mem_wb_wb_src;
     reg        mem_wb_is_io;
     reg [31:0] io_data_in;
     
-    wire [5:0]  rf_wr_addr;
+    wire [4:0]  rf_wr_addr;
     wire [31:0] rf_wr_data;
     wire        rf_we;
 
@@ -28,10 +28,10 @@ module tb_wb_stage;
     );
 
     initial begin
-        $display("--- M9.9: Write Back Stage Test ---");
+        $display("--- RISC-V Write Back Stage Test ---");
         mem_wb_alu_result = 32'h00000000;
         mem_wb_mem_data = 32'h00000000;
-        mem_wb_rd_addr = 6'd0;
+        mem_wb_rd_addr = 5'd0;
         mem_wb_reg_write = 0;
         mem_wb_wb_src = 2'b00;
         mem_wb_is_io = 0;
@@ -40,7 +40,7 @@ module tb_wb_stage;
         // Test 1: ALU result
         #5;
         mem_wb_alu_result = 32'h12345678;
-        mem_wb_rd_addr = 6'd5;
+        mem_wb_rd_addr = 5'd5;
         mem_wb_reg_write = 1;
         mem_wb_wb_src = 2'b00; // ALU
         #1;
@@ -55,12 +55,13 @@ module tb_wb_stage;
         $display("MEM Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
         if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'hDEADBEEF) $display("FAIL: MEM Write");
 
-        // Test 3: No write
+        // Test 3: I/O result
         #5;
-        mem_wb_reg_write = 0;
+        io_data_in = 32'h11223344;
+        mem_wb_wb_src = 2'b11; // I/O
         #1;
-        $display("No Write: we=%b", rf_we);
-        if (rf_we !== 0) $display("FAIL: No Write");
+        $display("I/O Write: we=%b, addr=%d, data=%h", rf_we, rf_wr_addr, rf_wr_data);
+        if (rf_we !== 1 || rf_wr_addr !== 5 || rf_wr_data !== 32'h11223344) $display("FAIL: I/O Write");
 
         $display("Test finished.");
         $finish;

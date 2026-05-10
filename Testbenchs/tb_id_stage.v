@@ -1,3 +1,4 @@
+`include "defines.vh"
 `timescale 1ns / 1ps
 
 module tb_id_stage;
@@ -12,10 +13,12 @@ module tb_id_stage;
     reg [31:0] regfile_rs1;
     reg [31:0] regfile_rs2;
     
-    wire [5:0] rs1_addr;
-    wire [5:0] rs2_addr;
+    wire [4:0] rs1_addr;
+    wire [4:0] rs2_addr;
     
-    wire [5:0] id_ex_alu_op;
+    wire [6:0]  id_ex_opcode;
+    wire [2:0]  id_ex_funct3;
+    wire [6:0]  id_ex_funct7;
     wire id_ex_mem_read;
     wire id_ex_mem_write;
     wire id_ex_reg_write;
@@ -30,10 +33,12 @@ module tb_id_stage;
     wire [31:0] id_ex_rs2_data;
     wire [31:0] id_ex_imm32;
     
-    wire [5:0] id_ex_rd_addr;
-    wire [5:0] id_ex_rs1_addr;
-    wire [5:0] id_ex_rs2_addr;
+    wire [4:0]  id_ex_rd_addr;
+    wire [4:0]  id_ex_rs1_addr;
+    wire [4:0]  id_ex_rs2_addr;
     wire [31:0] id_ex_pc_plus4;
+    wire id_ex_is_reti;
+    wire id_ex_is_halt;
 
     id_stage dut (
         .clk(clk),
@@ -46,7 +51,9 @@ module tb_id_stage;
         .regfile_rs2(regfile_rs2),
         .rs1_addr(rs1_addr),
         .rs2_addr(rs2_addr),
-        .id_ex_alu_op(id_ex_alu_op),
+        .id_ex_opcode(id_ex_opcode),
+        .id_ex_funct3(id_ex_funct3),
+        .id_ex_funct7(id_ex_funct7),
         .id_ex_mem_read(id_ex_mem_read),
         .id_ex_mem_write(id_ex_mem_write),
         .id_ex_reg_write(id_ex_reg_write),
@@ -62,13 +69,15 @@ module tb_id_stage;
         .id_ex_rd_addr(id_ex_rd_addr),
         .id_ex_rs1_addr(id_ex_rs1_addr),
         .id_ex_rs2_addr(id_ex_rs2_addr),
-        .id_ex_pc_plus4(id_ex_pc_plus4)
+        .id_ex_pc_plus4(id_ex_pc_plus4),
+        .id_ex_is_reti(id_ex_is_reti),
+        .id_ex_is_halt(id_ex_is_halt)
     );
 
     always #5 clk = ~clk;
 
     initial begin
-        $display("--- M9.5: Instruction Decode Stage Test ---");
+        $display("--- RISC-V Instruction Decode Stage Test ---");
         clk = 0;
         rst = 1;
         flush = 0;
@@ -81,45 +90,43 @@ module tb_id_stage;
         #15;
         rst = 0;
 
-        // Test 1: ADD R1, R2, R3 (opcode=01, rd=01, rs1=02, rs2=03)
-        // [31:26]=01, [25:20]=01, [19:14]=02, [13:8]=03, [7:0]=00
+        // Test 1: ADD x3, x1, x2
+        // R-type: funct7(0000000) rs2(00010) rs1(00001) funct3(000) rd(00011) opcode(0110011)
         @(negedge clk);
-        if_id_instr = {6'h01, 6'h01, 6'h02, 6'h03, 8'h00};
+        if_id_instr = 32'b0000000_00010_00001_000_00011_0110011;
         regfile_rs1 = 32'hAAAA_AAAA;
         regfile_rs2 = 32'hBBBB_BBBB;
         
-        #1; // combinationally check addrs
-        if (rs1_addr !== 6'h02 || rs2_addr !== 6'h03) $display("FAIL: ADD addr");
+        #1;
+        if (rs1_addr !== 5'd1 || rs2_addr !== 5'd2) $display("FAIL: ADD addr rs1=%d rs2=%d", rs1_addr, rs2_addr);
         
         @(negedge clk);
         #1;
-        $display("ADD Decoded: alu_src=%b, rd=%d, rs1=%d, rs2=%d", id_ex_alu_src, id_ex_rd_addr, id_ex_rs1_addr, id_ex_rs2_addr);
-        if (id_ex_alu_src !== 0 || id_ex_reg_write !== 1) $display("FAIL: ADD ctrl");
+        $display("ADD Decoded: rd=%d, rs1=%d, rs2=%d, rs1_data=%h", id_ex_rd_addr, id_ex_rs1_addr, id_ex_rs2_addr, id_ex_rs1_data);
+        if (id_ex_rd_addr !== 5'd3 || id_ex_reg_write !== 1) $display("FAIL: ADD ctrl");
 
-        // Test 2: LW R4, 100(R5) (opcode=20, rd=04, rs1=05, imm14=100)
+        // Test 2: ADDI x4, x1, 100
+        // I-type: imm[11:0](100) rs1(00001) funct3(000) rd(00100) opcode(0010011)
         @(negedge clk);
-        if_id_instr = {6'h20, 6'h04, 6'h05, 14'd100};
+        if_id_instr = {12'd100, 5'd1, 3'b000, 5'd4, 7'b0010011};
         
         #1;
-        if (rs1_addr !== 6'h05) $display("FAIL: LW addr");
+        if (rs1_addr !== 5'd1) $display("FAIL: ADDI addr");
         
         @(negedge clk);
         #1;
-        $display("LW Decoded: imm32=%d, alu_src=%b", id_ex_imm32, id_ex_alu_src);
-        if (id_ex_imm32 !== 32'd100 || id_ex_alu_src !== 1 || id_ex_mem_read !== 1) $display("FAIL: LW ctrl");
+        $display("ADDI Decoded: imm32=%d, alu_src=%b", id_ex_imm32, id_ex_alu_src);
+        if (id_ex_imm32 !== 32'd100 || id_ex_alu_src !== 1) $display("FAIL: ADDI ctrl");
 
-        // Test 3: BEQ R6, R7, -4 (opcode=30, rd=06, rs1=07, imm14=0x3FFC)
+        // Test 3: LW x5, 40(x1)
+        // I-type: imm[11:0](40) rs1(00001) funct3(010) rd(00101) opcode(0000011)
         @(negedge clk);
-        if_id_instr = {6'h30, 6'h06, 6'h07, 14'h3FFC};
-        
-        #1;
-        // rd vs rs1 -> so rs1=07, rs2=06 (because rd acts as second source)
-        if (rs1_addr !== 6'h07 || rs2_addr !== 6'h06) $display("FAIL: BEQ addr");
+        if_id_instr = {12'd40, 5'd1, 3'b010, 5'd5, 7'b0000011};
         
         @(negedge clk);
         #1;
-        $display("BEQ Decoded: branch=%b", id_ex_branch);
-        if (id_ex_branch !== 1) $display("FAIL: BEQ ctrl");
+        $display("LW Decoded: mem_read=%b, wb_src=%b", id_ex_mem_read, id_ex_wb_src);
+        if (id_ex_mem_read !== 1 || id_ex_wb_src !== 2'b01) $display("FAIL: LW ctrl");
 
         $display("Test finished.");
         $finish;

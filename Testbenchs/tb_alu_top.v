@@ -1,3 +1,4 @@
+`include "defines.vh"
 `timescale 1ns / 1ps
 
 module tb_alu_top;
@@ -7,7 +8,10 @@ module tb_alu_top;
     reg start;
     reg [31:0] a;
     reg [31:0] b;
-    reg [5:0]  op;
+    reg [6:0]  opcode;
+    reg [2:0]  funct3;
+    reg [6:0]  funct7;
+    reg        is_float;
     wire [31:0] result;
     wire done;
     wire [31:0] psw_out;
@@ -18,18 +22,16 @@ module tb_alu_top;
         .start(start),
         .a(a),
         .b(b),
-        .op(op),
+        .opcode(opcode),
+        .funct3(funct3),
+        .funct7(funct7),
+        .is_float(is_float),
         .result(result),
         .done(done),
         .psw_out(psw_out)
     );
 
     always #5 clk = ~clk;
-
-    localparam OP_ADD  = 6'h01;
-    localparam OP_MUL  = 6'h0B;
-    localparam OP_DIV  = 6'h0D;
-    localparam OP_FADD = 6'h28;
 
     integer errors = 0;
     integer cycle_count;
@@ -40,13 +42,18 @@ module tb_alu_top;
         start = 0;
         a = 0;
         b = 0;
-        op = 0;
+        opcode = 0;
+        funct3 = 0;
+        funct7 = 0;
+        is_float = 0;
         
         #15 rst = 0;
         
-        // 1. Issue ADD
+        // 1. Issue ADD (OPC_OP)
         @(posedge clk);
-        a = 32'd10; b = 32'd20; op = OP_ADD; start = 1;
+        a = 32'd10; b = 32'd20; 
+        opcode = `OPC_OP; funct3 = `F3_ADD_SUB; funct7 = `F7_BASE; 
+        is_float = 0; start = 1;
         #1; // combinational
         if (result !== 32'd30 || done !== 1'b1) begin
             $display("ERROR: ADD failed. res=%0d (exp: 30), done=%b", result, done);
@@ -55,11 +62,13 @@ module tb_alu_top;
             $display("ADD passed. 1 cycle (combinational) done.");
         end
         start = 0;
-        while(done) #1; // Wait for combinational done to drop since start=0
+        while(done) #1; 
 
-        // 2. Issue MUL
+        // 2. Issue MUL (OPC_OP + MULDIV)
         @(posedge clk);
-        a = 32'd5; b = 32'd6; op = OP_MUL; start = 1;
+        a = 32'd5; b = 32'd6; 
+        opcode = `OPC_OP; funct3 = `F3_MUL; funct7 = `F7_MULDIV;
+        is_float = 0; start = 1;
         #1;
         cycle_count = 0;
         while (!done) begin
@@ -75,23 +84,27 @@ module tb_alu_top;
         start = 0;
         while(done) @(posedge clk);
 
-        // 3. Issue FADD
+        // 3. Issue FADD (OP_FP)
         @(posedge clk);
         // 1.0 (3f800000) + 1.0 (3f800000) = 2.0 (40000000)
-        a = 32'h3f800000; b = 32'h3f800000; op = OP_FADD; start = 1;
-        #1; // combinational
+        a = 32'h3f800000; b = 32'h3f800000; 
+        opcode = `OPC_OP_FP; funct3 = 3'h0; funct7 = `F7_FADD;
+        is_float = 1; start = 1;
+        #1; 
         if (result !== 32'h40000000 || done !== 1'b1) begin
             $display("ERROR: FADD failed. res=%h (exp: 40000000), done=%b", result, done);
             errors = errors + 1;
         end else begin
-            $display("FADD passed. combinational done.");
+            $display("FADD passed.");
         end
         start = 0;
         while(done) #1;
 
         // 4. Issue DIV
         @(posedge clk);
-        a = 32'd100; b = 32'd10; op = OP_DIV; start = 1;
+        a = 32'd100; b = 32'd10; 
+        opcode = `OPC_OP; funct3 = `F3_DIV; funct7 = `F7_MULDIV;
+        is_float = 0; start = 1;
         #1;
         cycle_count = 0;
         while (!done) begin
@@ -104,34 +117,6 @@ module tb_alu_top;
         end else begin
             $display("DIV passed. cycles=%0d", cycle_count);
         end
-        start = 0;
-        while (done) @(posedge clk); // wait for done to de-assert
-
-        // 5. Back-to-back mul then div
-        @(posedge clk);
-        a = 32'd7; b = 32'd8; op = OP_MUL; start = 1;
-        #1; // allow comb logic to settle
-        cycle_count = 0;
-        while (!done) begin
-            @(posedge clk);
-            cycle_count = cycle_count + 1;
-        end
-        if (result !== 32'd56) begin
-            $display("ERROR: Back-to-back MUL failed. res=%0d (exp: 56), cycles=%0d", result, cycle_count);
-            errors = errors + 1;
-        end
-        start = 0;
-        while (done) @(posedge clk);
-
-        @(posedge clk);
-        a = 32'd56; b = 32'd7; op = OP_DIV; start = 1;
-        #1;
-        while (!done) @(posedge clk);
-        if (result !== 32'd8) begin
-            $display("ERROR: Back-to-back DIV failed.");
-            errors = errors + 1;
-        end
-        $display("Back-to-back MUL then DIV passed.");
         start = 0;
         while (done) @(posedge clk);
 

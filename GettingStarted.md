@@ -6,16 +6,15 @@ Follow these steps to get your simulation environment running.
 
 - **Icarus Verilog**: Ensure `iverilog` and `vvp` are in your system PATH.
 - **Python 3**: Required for the assembler.
-- **PowerShell**: To run the `.bat` test scripts.
 
 ## Fast Run
 
-To verify your installation, run the `simple` program:
+To verify your installation, run the `program` program:
 
 1.  Open PowerShell in the project root.
 2.  Run the command:
     ```powershell
-    .\Scripts\test_universal.bat simple
+    .\Scripts\test_program.bat program 0 10 0
     ```
 3.  You should see:
     - `Successfully assembled...`

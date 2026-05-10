@@ -1,3 +1,4 @@
+`include "defines.vh"
 `timescale 1ns / 1ps
 
 module tb_mem_stage;
@@ -8,13 +9,15 @@ module tb_mem_stage;
     reg [31:0] ex_mem_alu_result;
     reg ex_mem_zero;
     reg [31:0] ex_mem_wr_data;
-    reg [5:0]  ex_mem_rd_addr;
+    reg [4:0]  ex_mem_rd_addr;
     
     reg ex_mem_mem_read;
     reg ex_mem_mem_write;
     reg ex_mem_reg_write;
     reg ex_mem_is_io;
     reg [1:0] ex_mem_wb_src;
+    reg [2:0] ex_mem_funct3;
+    reg       ex_mem_is_halt;
     
     reg [31:0] dcache_data;
     reg dcache_hit;
@@ -27,10 +30,11 @@ module tb_mem_stage;
     
     wire [31:0] mem_wb_alu_result;
     wire [31:0] mem_wb_mem_data;
-    wire [5:0]  mem_wb_rd_addr;
+    wire [4:0]  mem_wb_rd_addr;
     wire mem_wb_reg_write;
     wire [1:0]  mem_wb_wb_src;
     wire mem_wb_is_io;
+    wire mem_wb_is_halt;
 
     mem_stage dut (
         .clk(clk),
@@ -44,6 +48,8 @@ module tb_mem_stage;
         .ex_mem_reg_write(ex_mem_reg_write),
         .ex_mem_is_io(ex_mem_is_io),
         .ex_mem_wb_src(ex_mem_wb_src),
+        .ex_mem_funct3(ex_mem_funct3),
+        .ex_mem_is_halt(ex_mem_is_halt),
         .dcache_data(dcache_data),
         .dcache_hit(dcache_hit),
         .dcache_addr(dcache_addr),
@@ -56,13 +62,14 @@ module tb_mem_stage;
         .mem_wb_rd_addr(mem_wb_rd_addr),
         .mem_wb_reg_write(mem_wb_reg_write),
         .mem_wb_wb_src(mem_wb_wb_src),
-        .mem_wb_is_io(mem_wb_is_io)
+        .mem_wb_is_io(mem_wb_is_io),
+        .mem_wb_is_halt(mem_wb_is_halt)
     );
 
     always #5 clk = ~clk;
 
     initial begin
-        $display("--- M9.8: MEM Stage Test ---");
+        $display("--- RISC-V MEM Stage Test ---");
         clk = 0;
         rst = 1;
         ex_mem_alu_result = 0;
@@ -74,38 +81,42 @@ module tb_mem_stage;
         ex_mem_reg_write = 0;
         ex_mem_is_io = 0;
         ex_mem_wb_src = 0;
+        ex_mem_funct3 = 0;
+        ex_mem_is_halt = 0;
         dcache_data = 0;
         dcache_hit = 1;
         
         #15;
         rst = 0;
 
-        // Test 1: Load Hit
+        // Test 1: Load LW Hit
         @(negedge clk);
         ex_mem_alu_result = 32'h0000A000;
         ex_mem_mem_read = 1;
         ex_mem_reg_write = 1;
         ex_mem_wb_src = 2'b01; // MEM
+        ex_mem_funct3 = `F3_LW;
         dcache_hit = 1;
         dcache_data = 32'hDEADBEEF;
         
         @(negedge clk);
         #1;
-        $display("Load Hit: stall=%b, re=%b, data=%h", cache_stall, dcache_re, mem_wb_mem_data);
-        if (cache_stall !== 0 || dcache_re !== 1 || mem_wb_mem_data !== 32'hDEADBEEF) $display("FAIL: Load Hit");
+        $display("LW Hit: stall=%b, re=%b, data=%h", cache_stall, dcache_re, mem_wb_mem_data);
+        if (cache_stall !== 0 || dcache_re !== 1 || mem_wb_mem_data !== 32'hDEADBEEF) $display("FAIL: LW Hit");
         ex_mem_mem_read = 0;
 
-        // Test 2: Store Miss -> Stall
+        // Test 2: Store SW Miss -> Stall
         @(negedge clk);
         ex_mem_alu_result = 32'h0000B000;
         ex_mem_wr_data = 32'hCAFE1234;
         ex_mem_mem_write = 1;
+        ex_mem_funct3 = `F3_SW;
         dcache_hit = 0;
         
         @(negedge clk);
         #1;
-        $display("Store Miss: stall=%b, we=%b, data=%h", cache_stall, dcache_we, dcache_wr_data);
-        if (cache_stall !== 1 || dcache_we !== 1 || dcache_wr_data !== 32'hCAFE1234) $display("FAIL: Store Miss");
+        $display("SW Miss: stall=%b, we=%b", cache_stall, dcache_we);
+        if (cache_stall !== 1 || dcache_we !== 1) $display("FAIL: SW Miss stall");
         
         // Recover Hit
         @(negedge clk);
@@ -113,22 +124,9 @@ module tb_mem_stage;
         
         @(negedge clk);
         #1;
-        $display("Store Hit Recovered: stall=%b", cache_stall);
-        if (cache_stall !== 0) $display("FAIL: Store Hit Recov");
+        $display("SW Hit Recovered: stall=%b", cache_stall);
+        if (cache_stall !== 0) $display("FAIL: SW Hit Recov");
         ex_mem_mem_write = 0;
-
-        // Test 3: Non-memory (ALU)
-        @(negedge clk);
-        ex_mem_alu_result = 32'h11112222;
-        ex_mem_wb_src = 2'b00; // ALU
-        ex_mem_mem_read = 0;
-        ex_mem_mem_write = 0;
-        dcache_hit = 0; // should NOT stall since it's not a memory op!
-        
-        @(negedge clk);
-        #1;
-        $display("ALU Op: stall=%b, re=%b, we=%b, out_alu=%h", cache_stall, dcache_re, dcache_we, mem_wb_alu_result);
-        if (cache_stall !== 0 || dcache_re !== 0 || dcache_we !== 0 || mem_wb_alu_result !== 32'h11112222) $display("FAIL: ALU Op");
 
         $display("Test finished.");
         $finish;

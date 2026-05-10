@@ -1,247 +1,517 @@
 import sys
 import re
 
-# Define Instruction Formats and Opcodes
-OPCODES = {
-    # Group 1: R-type (0x00 - 0x0F)
-    'NOP':  (0x00, 'R'),
-    'ADD':  (0x01, 'R'),
-    'SUB':  (0x02, 'R'),
-    'AND':  (0x03, 'R'),
-    'OR':   (0x04, 'R'),
-    'XOR':  (0x05, 'R'),
-    'NOT':  (0x06, 'R'),
-    'SLL':  (0x07, 'R'),
-    'SRL':  (0x08, 'R'),
-    'SRA':  (0x09, 'R'),
-    'ROR':  (0x0A, 'R'),
-    'MUL':  (0x0B, 'R'),
-    'MULH': (0x0C, 'R'),
-    'DIV':  (0x0D, 'R'),
-    'MOD':  (0x0E, 'R'),
-    'CMP':  (0x0F, 'R'),
+# =============================================================================
+#  RISC-V RV32I/M/F Assembler
+#  Produces machine code compatible with riscv32-unknown-elf-gcc output.
+#  Custom extensions: HLT, SEI, CLI, RETI, IN, OUT  (CUSTOM-0 opcode space)
+# =============================================================================
 
-    # Group 2: I-type ALU (0x10 - 0x1B)
-    'ADDI': (0x10, 'I'),
-    'SUBI': (0x11, 'I'),
-    'ANDI': (0x12, 'I'),
-    'ORI':  (0x13, 'I'),
-    'XORI': (0x14, 'I'),
-    'SLLI': (0x15, 'I'),
-    'SRLI': (0x16, 'I'),
-    'SRAI': (0x17, 'I'),
-    'CMPI': (0x18, 'I'),
-    'MOVI': (0x19, 'I'),
-    'LUI':  (0x1A, 'L'), 
-    'ADDC': (0x1B, 'I'),
+# --- Standard RISC-V Opcodes (bits [6:0]) ---
+OPC_OP      = 0b0110011   # R-type ALU
+OPC_OP_IMM  = 0b0010011   # I-type ALU
+OPC_LOAD    = 0b0000011   # I-type Load
+OPC_STORE   = 0b0100011   # S-type Store
+OPC_BRANCH  = 0b1100011   # B-type Branch
+OPC_JAL     = 0b1101111   # J-type JAL
+OPC_JALR    = 0b1100111   # I-type JALR
+OPC_LUI     = 0b0110111   # U-type LUI
+OPC_AUIPC   = 0b0010111   # U-type AUIPC
+OPC_SYSTEM  = 0b1110011   # System (ECALL/EBREAK)
+OPC_OP_FP   = 0b1010011   # R-type Float
+OPC_CUSTOM0 = 0b0001011   # Custom-0
 
-    # Group 3: Load/Store (I-type)
-    'LW':   (0x20, 'M'), 
-    'SW':   (0x21, 'M'),
-    'LH':   (0x22, 'M'),  # OP_LH=0x22 per defines.vh
-    'SH':   (0x23, 'M'),  # OP_SH=0x23
-    'LB':   (0x24, 'M'),  # OP_LB=0x24
-    'SB':   (0x25, 'M'),  # OP_SB=0x25
-    'LBU':  (0x26, 'M'),
-    'LHU':  (0x27, 'M'),
+# Instruction table: mnemonic -> (format, opcode, funct3, funct7)
+# Format codes: 'R', 'I', 'S', 'B', 'U', 'J', 'CUSTOM', 'PSEUDO', 'SYSTEM'
+INSTRUCTIONS = {
+    # --- R-type ALU (OPC_OP) ---
+    'ADD':    ('R', OPC_OP, 0b000, 0b0000000),
+    'SUB':    ('R', OPC_OP, 0b000, 0b0100000),
+    'SLL':    ('R', OPC_OP, 0b001, 0b0000000),
+    'SLT':    ('R', OPC_OP, 0b010, 0b0000000),
+    'SLTU':   ('R', OPC_OP, 0b011, 0b0000000),
+    'XOR':    ('R', OPC_OP, 0b100, 0b0000000),
+    'SRL':    ('R', OPC_OP, 0b101, 0b0000000),
+    'SRA':    ('R', OPC_OP, 0b101, 0b0100000),
+    'OR':     ('R', OPC_OP, 0b110, 0b0000000),
+    'AND':    ('R', OPC_OP, 0b111, 0b0000000),
 
-    # Group 4: Float (R-type)
-    'FADD': (0x28, 'R'),
-    'FSUB': (0x29, 'R'),
-    'FMUL': (0x2A, 'R'),
-    'FCMP': (0x2B, 'R'),
-    'ITOF': (0x2C, 'R'),
-    'FTOI': (0x2D, 'R'),
-    'FMOV': (0x2E, 'R'),
+    # --- RV32M (Multiply/Divide, OPC_OP with funct7=0x01) ---
+    'MUL':    ('R', OPC_OP, 0b000, 0b0000001),
+    'MULH':   ('R', OPC_OP, 0b001, 0b0000001),
+    'MULHSU': ('R', OPC_OP, 0b010, 0b0000001),
+    'MULHU':  ('R', OPC_OP, 0b011, 0b0000001),
+    'DIV':    ('R', OPC_OP, 0b100, 0b0000001),
+    'DIVU':   ('R', OPC_OP, 0b101, 0b0000001),
+    'REM':    ('R', OPC_OP, 0b110, 0b0000001),
+    'REMU':   ('R', OPC_OP, 0b111, 0b0000001),
 
-    # Group 5: Branch (I-type)
-    'BEQ':  (0x30, 'B'), 
-    'BNE':  (0x31, 'B'),
-    'BLT':  (0x32, 'B'),
-    'BGT':  (0x33, 'B'),
-    'BLE':  (0x34, 'B'),
-    'BGE':  (0x35, 'B'),
-    'BLTU': (0x36, 'B'),
-    'BGEU': (0x37, 'B'),
+    # --- I-type ALU (OPC_OP_IMM) ---
+    'ADDI':   ('I', OPC_OP_IMM, 0b000, None),
+    'SLTI':   ('I', OPC_OP_IMM, 0b010, None),
+    'SLTIU':  ('I', OPC_OP_IMM, 0b011, None),
+    'XORI':   ('I', OPC_OP_IMM, 0b100, None),
+    'ORI':    ('I', OPC_OP_IMM, 0b110, None),
+    'ANDI':   ('I', OPC_OP_IMM, 0b111, None),
+    'SLLI':   ('ISHIFT', OPC_OP_IMM, 0b001, 0b0000000),
+    'SRLI':   ('ISHIFT', OPC_OP_IMM, 0b101, 0b0000000),
+    'SRAI':   ('ISHIFT', OPC_OP_IMM, 0b101, 0b0100000),
 
-    # Group 6: Jump/Call
-    'JAL':  (0x38, 'J'), 
-    'JALR': (0x39, 'I'),
-    'CALL': (0x3A, 'J'),
-    'RET':  (0x3B, 'R'),
-    'RETI': (0x3C, 'R'),
+    # --- Load (OPC_LOAD) ---
+    'LB':     ('LOAD', OPC_LOAD, 0b000, None),
+    'LH':     ('LOAD', OPC_LOAD, 0b001, None),
+    'LW':     ('LOAD', OPC_LOAD, 0b010, None),
+    'LBU':    ('LOAD', OPC_LOAD, 0b100, None),
+    'LHU':    ('LOAD', OPC_LOAD, 0b101, None),
 
-    # Group 7: I/O
-    'IN':   (0x3D, 'IO'),  # IN  rd, port  — OP_IN=0x3D
-    'OUT':  (0x3E, 'IO'),  # OUT rd, port  — OP_OUT=0x3E
+    # --- Store (OPC_STORE) ---
+    'SB':     ('S', OPC_STORE, 0b000, None),
+    'SH':     ('S', OPC_STORE, 0b001, None),
+    'SW':     ('S', OPC_STORE, 0b010, None),
 
-    # Group 8: MISC (Opcode 0x3F)
-    # Only ops with actual hardware decode are retained.
-    # Removed (no RISC-V base ISA equivalent, no hardware decode):
-    #   NOP_M  → use NOP (ADDI x0, x0, 0)
-    #   PUSH   → use ADDI sp, sp, -4 then SW
-    #   POP    → use LW then ADDI sp, sp, 4
-    #   MOVSP/GETSP → sp is register x2, use ADD/ADDI
-    #   SETB/CLRB/TESTB → use ORI/ANDI/XORI
-    #   ADDC_R/SUBC → no carry arithmetic in RISC-V
-    #   SWAP   → no register-swap in RISC-V; use temp register
-    #   MOV    → use ADDI rd, rs1, 0
-    'HLT': (0x3F, 'MISC', 0x00),  # WFI/EBREAK equivalent; decoded in control_unit + cpu_top
-    'SEI': (0x3F, 'MISC', 0x08),  # CSR-equivalent: enable interrupts (psw[31]←1)
-    'CLI': (0x3F, 'MISC', 0x09),  # CSR-equivalent: disable interrupts (psw[31]←0)
+    # --- Branch (OPC_BRANCH) ---
+    'BEQ':    ('B', OPC_BRANCH, 0b000, None),
+    'BNE':    ('B', OPC_BRANCH, 0b001, None),
+    'BLT':    ('B', OPC_BRANCH, 0b100, None),
+    'BGE':    ('B', OPC_BRANCH, 0b101, None),
+    'BLTU':   ('B', OPC_BRANCH, 0b110, None),
+    'BGEU':   ('B', OPC_BRANCH, 0b111, None),
+
+    # --- JAL (OPC_JAL) ---
+    'JAL':    ('J', OPC_JAL, None, None),
+
+    # --- JALR (OPC_JALR) ---
+    'JALR':   ('I', OPC_JALR, 0b000, None),
+
+    # --- U-type ---
+    'LUI':    ('U', OPC_LUI, None, None),
+    'AUIPC':  ('U', OPC_AUIPC, None, None),
+
+    # --- Floating Point (OPC_OP_FP) --- shared integer register file
+    'FADD':   ('R', OPC_OP_FP, 0b000, 0b0000000),
+    'FSUB':   ('R', OPC_OP_FP, 0b000, 0b0000100),
+    'FMUL':   ('R', OPC_OP_FP, 0b000, 0b0001000),
+    'FCMP':   ('R', OPC_OP_FP, 0b010, 0b1010000),  # FEQ.S equivalent
+    'ITOF':   ('R', OPC_OP_FP, 0b000, 0b1101000),  # FCVT.S.W
+    'FTOI':   ('R', OPC_OP_FP, 0b000, 0b1100000),  # FCVT.W.S
+
+    # --- Custom-0 extensions ---
+    'HLT':    ('CUSTOM', OPC_CUSTOM0, 0b000, None),
+    'SEI':    ('CUSTOM', OPC_CUSTOM0, 0b001, None),
+    'CLI':    ('CUSTOM', OPC_CUSTOM0, 0b010, None),
+    'RETI':   ('CUSTOM', OPC_CUSTOM0, 0b011, None),
+    'IN':     ('CUSTOM_IO', OPC_CUSTOM0, 0b100, None),
+    'OUT':    ('CUSTOM_IO', OPC_CUSTOM0, 0b101, None),
+
+    # --- System ---
+    'ECALL':  ('SYSTEM', OPC_SYSTEM, 0b000, None),
+    'EBREAK': ('SYSTEM', OPC_SYSTEM, 0b000, None),
+
+    # --- Pseudo-instructions (expanded before encoding) ---
+    'NOP':    ('PSEUDO', None, None, None),
+    'MV':     ('PSEUDO', None, None, None),
+    'NOT':    ('PSEUDO', None, None, None),
+    'NEG':    ('PSEUDO', None, None, None),
+    'RET':    ('PSEUDO', None, None, None),
+    'CALL':   ('PSEUDO', None, None, None),
+    'LI':     ('PSEUDO', None, None, None),
+    'LA':     ('PSEUDO', None, None, None),
+    'J':      ('PSEUDO', None, None, None),
+    'SEQZ':   ('PSEUDO', None, None, None),
+    'SNEZ':   ('PSEUDO', None, None, None),
+    'BGT':    ('PSEUDO', None, None, None),
+    'BLE':    ('PSEUDO', None, None, None),
+    'BGTU':   ('PSEUDO', None, None, None),
+    'BLEU':   ('PSEUDO', None, None, None),
+    'FMOV':   ('PSEUDO', None, None, None),
+    'MOD':    ('PSEUDO', None, None, None),
 }
 
+# RISC-V register map — standard ABI names
 REGS = {f'x{i}': i for i in range(32)}
 REGS.update({
-    'acc':  32,
-    'b':    33,
-    'zero':  0,   # x0 — hardwired zero
-    'ra':    1,   # x1 — return address (RISC-V ABI)
-    'sp':    2,   # x2 — stack pointer (RISC-V ABI)
+    'zero': 0,  'ra': 1,   'sp': 2,   'gp': 3,   'tp': 4,
+    'a0': 10, 'a1': 11, 'a2': 12, 'a3': 13, 'a4': 14, 'a5': 15, 'a6': 16, 'a7': 17,
+    't0': 5,  't1': 6,  't2': 7,  't3': 28, 't4': 29, 't5': 30, 't6': 31,
+    's0': 8,  'fp': 8,  's1': 9,
+    's2': 18, 's3': 19, 's4': 20, 's5': 21, 's6': 22, 's7': 23,
+    's8': 24, 's9': 25, 's10': 26, 's11': 27,
 })
 
+
 def parse_reg(reg_str):
-    reg_str = reg_str.lower().strip(',')
+    reg_str = reg_str.lower().strip().rstrip(',')
     if reg_str in REGS:
         return REGS[reg_str]
     if reg_str.startswith('x'):
         try:
-            return int(reg_str[1:])
-        except:
+            n = int(reg_str[1:])
+            if 0 <= n < 32:
+                return n
+        except ValueError:
             pass
     raise ValueError(f"Invalid register: {reg_str}")
 
+
 def parse_imm(imm_str):
-    imm_str = imm_str.strip('#').strip(',')
-    if imm_str.startswith('0x'):
+    imm_str = imm_str.strip().strip('#').strip(',')
+    if imm_str.startswith('0x') or imm_str.startswith('0X'):
         return int(imm_str, 16)
+    if imm_str.startswith('0b') or imm_str.startswith('0B'):
+        return int(imm_str, 2)
     return int(imm_str)
 
-def encode_instr(opcode, format_info, args, current_pc, labels):
-    op = opcode[0]
-    fmt = format_info
+
+def sign_extend(value, bits):
+    """Sign extend a value from `bits` width to Python int."""
+    mask = (1 << bits) - 1
+    value = value & mask
+    if value & (1 << (bits - 1)):
+        value -= (1 << bits)
+    return value
+
+
+def bits(value, nbits):
+    """Mask value to nbits."""
+    return value & ((1 << nbits) - 1)
+
+
+# ---- RISC-V Instruction Encoders ----
+
+def encode_r(opcode, rd, rs1, rs2, funct3, funct7):
+    return (bits(funct7, 7) << 25) | (bits(rs2, 5) << 20) | (bits(rs1, 5) << 15) | \
+           (bits(funct3, 3) << 12) | (bits(rd, 5) << 7) | bits(opcode, 7)
+
+
+def encode_i(opcode, rd, rs1, imm, funct3):
+    return (bits(imm, 12) << 20) | (bits(rs1, 5) << 15) | \
+           (bits(funct3, 3) << 12) | (bits(rd, 5) << 7) | bits(opcode, 7)
+
+
+def encode_s(opcode, rs1, rs2, imm, funct3):
+    imm_val = bits(imm, 12)
+    imm_11_5 = (imm_val >> 5) & 0x7F
+    imm_4_0  = imm_val & 0x1F
+    return (imm_11_5 << 25) | (bits(rs2, 5) << 20) | (bits(rs1, 5) << 15) | \
+           (bits(funct3, 3) << 12) | (imm_4_0 << 7) | bits(opcode, 7)
+
+
+def encode_b(opcode, rs1, rs2, imm, funct3):
+    # imm is byte offset, must be even — bit 0 is not stored
+    imm_val = bits(imm, 13)
+    bit_12   = (imm_val >> 12) & 1
+    bit_11   = (imm_val >> 11) & 1
+    bit_10_5 = (imm_val >> 5) & 0x3F
+    bit_4_1  = (imm_val >> 1) & 0xF
+    return (bit_12 << 31) | (bit_10_5 << 25) | (bits(rs2, 5) << 20) | \
+           (bits(rs1, 5) << 15) | (bits(funct3, 3) << 12) | \
+           (bit_4_1 << 8) | (bit_11 << 7) | bits(opcode, 7)
+
+
+def encode_u(opcode, rd, imm):
+    # imm is the upper 20 bits (already shifted in source)
+    return (bits(imm, 20) << 12) | (bits(rd, 5) << 7) | bits(opcode, 7)
+
+
+def encode_j(opcode, rd, imm):
+    # imm is byte offset; bit 0 is not stored
+    imm_val  = bits(imm, 21)
+    bit_20   = (imm_val >> 20) & 1
+    bit_19_12= (imm_val >> 12) & 0xFF
+    bit_11   = (imm_val >> 11) & 1
+    bit_10_1 = (imm_val >> 1) & 0x3FF
+    return (bit_20 << 31) | (bit_10_1 << 21) | (bit_11 << 20) | \
+           (bit_19_12 << 12) | (bits(rd, 5) << 7) | bits(opcode, 7)
+
+
+def expand_pseudo(mnemonic, args, current_pc, labels):
+    """Expand a pseudo-instruction into one or more real instructions.
+    Returns a list of (mnemonic, args) tuples."""
+    if mnemonic == 'NOP':
+        return [('ADDI', ['x0', 'x0', '0'])]
+    elif mnemonic == 'MV':
+        return [('ADDI', [args[0], args[1], '0'])]
+    elif mnemonic == 'NOT':
+        return [('XORI', [args[0], args[1], '-1'])]
+    elif mnemonic == 'NEG':
+        return [('SUB', [args[0], 'x0', args[1]])]
+    elif mnemonic == 'RET':
+        return [('JALR', ['x0', 'ra', '0'])]
+    elif mnemonic == 'J':
+        return [('JAL', ['x0', args[0]])]
+    elif mnemonic == 'CALL':
+        return [('JAL', ['ra', args[0]])]
+    elif mnemonic == 'SEQZ':
+        return [('SLTIU', [args[0], args[1], '1'])]
+    elif mnemonic == 'SNEZ':
+        return [('SLTU', [args[0], 'x0', args[1]])]
+    elif mnemonic == 'BGT':
+        # BGT rs, rt, offset  → BLT rt, rs, offset
+        return [('BLT', [args[1], args[0], args[2]])]
+    elif mnemonic == 'BLE':
+        # BLE rs, rt, offset  → BGE rt, rs, offset
+        return [('BGE', [args[1], args[0], args[2]])]
+    elif mnemonic == 'BGTU':
+        return [('BLTU', [args[1], args[0], args[2]])]
+    elif mnemonic == 'BLEU':
+        return [('BGEU', [args[1], args[0], args[2]])]
+    elif mnemonic == 'FMOV':
+        # FMOV rd, rs  → ADDI rd, rs, 0 (shared register file)
+        return [('ADDI', [args[0], args[1], '0'])]
+    elif mnemonic == 'MOD':
+        # MOD rd, rs1, rs2  → REM rd, rs1, rs2
+        return [('REM', [args[0], args[1], args[2]])]
+    elif mnemonic == 'LI':
+        imm = parse_imm(args[1])
+        if -2048 <= imm <= 2047:
+            return [('ADDI', [args[0], 'x0', str(imm)])]
+        else:
+            upper = (imm + 0x800) >> 12
+            lower = imm - (upper << 12)
+            result = [('LUI', [args[0], str(upper)])]
+            if lower != 0:
+                result.append(('ADDI', [args[0], args[0], str(lower)]))
+            return result
+    elif mnemonic == 'LA':
+        # LA rd, symbol — for now treat as LI with label address
+        target = args[1]
+        if target in labels:
+            addr = labels[target]
+            upper = (addr + 0x800) >> 12
+            lower = addr - (upper << 12)
+            result = [('LUI', [args[0], str(upper)])]
+            if lower != 0:
+                result.append(('ADDI', [args[0], args[0], str(lower)]))
+            return result
+        raise ValueError(f"LA: undefined label: {target}")
+    else:
+        raise ValueError(f"Unknown pseudo-instruction: {mnemonic}")
+
+
+def encode_instruction(mnemonic, args, current_pc, labels):
+    """Encode a single real (non-pseudo) instruction to a 32-bit integer."""
+    info = INSTRUCTIONS[mnemonic]
+    fmt, opcode, funct3, funct7 = info
 
     if fmt == 'R':
-        rd = parse_reg(args[0])
-        rs1 = parse_reg(args[1]) if len(args) > 1 else 0
+        rd  = parse_reg(args[0])
+        rs1 = parse_reg(args[1])
         rs2 = parse_reg(args[2]) if len(args) > 2 else 0
-        return (op << 26) | (rd << 20) | (rs1 << 14) | (rs2 << 8)
-    
+        return encode_r(opcode, rd, rs1, rs2, funct3, funct7)
+
     elif fmt == 'I':
-        rd = parse_reg(args[0])
+        rd  = parse_reg(args[0])
         rs1 = parse_reg(args[1])
         imm = parse_imm(args[2])
-        return (op << 26) | (rd << 20) | (rs1 << 14) | (imm & 0x3FFF)
-    
-    elif fmt == 'L':
+        return encode_i(opcode, rd, rs1, imm, funct3)
+
+    elif fmt == 'ISHIFT':
+        rd  = parse_reg(args[0])
+        rs1 = parse_reg(args[1])
+        shamt = parse_imm(args[2]) & 0x1F
+        imm12 = (funct7 << 5) | shamt
+        return encode_i(opcode, rd, rs1, imm12, funct3)
+
+    elif fmt == 'LOAD':
         rd = parse_reg(args[0])
-        imm = parse_imm(args[1])
-        return (op << 26) | (rd << 20) | (imm & 0xFFFFF)
-    
-    elif fmt == 'M':
-        rd = parse_reg(args[0])
+        # Parse offset(base) syntax
         match = re.search(r'#?(-?\d+|0x[0-9a-fA-F]+)\s*\(\s*(\w+)\s*\)', args[1])
         if not match:
-            raise ValueError(f"Invalid memory operand: {args[1]}")
+            raise ValueError(f"Invalid load operand: {args[1]}")
         imm = parse_imm(match.group(1))
         rs1 = parse_reg(match.group(2))
-        return (op << 26) | (rd << 20) | (rs1 << 14) | (imm & 0x3FFF)
-    
+        return encode_i(opcode, rd, rs1, imm, funct3)
+
+    elif fmt == 'S':
+        rs2 = parse_reg(args[0])
+        match = re.search(r'#?(-?\d+|0x[0-9a-fA-F]+)\s*\(\s*(\w+)\s*\)', args[1])
+        if not match:
+            raise ValueError(f"Invalid store operand: {args[1]}")
+        imm = parse_imm(match.group(1))
+        rs1 = parse_reg(match.group(2))
+        return encode_s(opcode, rs1, rs2, imm, funct3)
+
     elif fmt == 'B':
         rs1 = parse_reg(args[0])
         rs2 = parse_reg(args[1])
         target = args[2]
         if target in labels:
-            offset = (labels[target] - (current_pc + 4)) // 4
+            offset = labels[target] - current_pc  # byte offset
         else:
             offset = parse_imm(target)
-        return (op << 26) | (rs2 << 20) | (rs1 << 14) | (offset & 0x3FFF)
-    
+        return encode_b(opcode, rs1, rs2, offset, funct3)
+
     elif fmt == 'J':
-        target = args[0]
+        # JAL rd, offset/label
+        if len(args) == 2:
+            rd = parse_reg(args[0])
+            target = args[1]
+        else:
+            # JAL label (rd defaults to ra)
+            rd = 1   # ra
+            target = args[0]
         if target in labels:
-            # FIX: JAL now uses PC-relative offsets, correctly aligning with hardware
-            offset = (labels[target] - (current_pc + 4)) // 4
+            offset = labels[target] - current_pc
         else:
             offset = parse_imm(target)
-        return (op << 26) | (offset & 0x3FFFFFF)
-    
-    elif fmt == 'IO':
-        # IN rd, port  /  OUT rd, port
-        # Encoding: [opcode|rd|0|port_imm]  (no rs1; port in immediate field)
-        rd  = parse_reg(args[0])
+        return encode_j(opcode, rd, offset)
+
+    elif fmt == 'U':
+        rd = parse_reg(args[0])
         imm = parse_imm(args[1])
-        return (op << 26) | (rd << 20) | (imm & 0x3FFF)
+        return encode_u(opcode, rd, imm)
 
-    elif fmt == 'MISC':
-        funct = opcode[2]
-        rd = parse_reg(args[0]) if len(args) > 0 else 0
-        rs1 = parse_reg(args[1]) if len(args) > 1 else 0
-        rs2 = parse_reg(args[2]) if len(args) > 2 else 0
-        return (op << 26) | (rd << 20) | (rs1 << 14) | (rs2 << 8) | funct
+    elif fmt == 'CUSTOM':
+        # No operands: HLT, SEI, CLI, RETI
+        # Encoded as: imm12=0, rs1=0, funct3, rd=0, opcode
+        return encode_i(opcode, 0, 0, 0, funct3)
 
-    return 0
+    elif fmt == 'CUSTOM_IO':
+        # IN rd, port_imm  /  OUT rs2, port_imm
+        rd_or_rs = parse_reg(args[0])
+        imm = parse_imm(args[1])
+        if mnemonic == 'IN':
+            return encode_i(opcode, rd_or_rs, 0, imm, funct3)
+        else:  # OUT
+            return encode_s(opcode, 0, rd_or_rs, imm, funct3)
+
+    elif fmt == 'SYSTEM':
+        imm12 = 0x000 if mnemonic == 'ECALL' else 0x001
+        return encode_i(opcode, 0, 0, imm12, funct3)
+
+    raise ValueError(f"Unknown format: {fmt} for {mnemonic}")
+
+
+def count_pseudo_words(mnemonic, args, labels):
+    """Return the number of 32-bit words a pseudo-instruction expands to."""
+    if mnemonic == 'LI':
+        imm = parse_imm(args[1])
+        if -2048 <= imm <= 2047:
+            return 1
+        else:
+            upper = (imm + 0x800) >> 12
+            lower = imm - (upper << 12)
+            return 1 if lower == 0 else 2
+    elif mnemonic == 'LA':
+        return 2  # conservative: LUI + ADDI
+    else:
+        return 1  # all other pseudos expand to exactly 1 instruction
+
 
 def assemble(input_file, output_file):
     with open(input_file, 'r') as f:
         lines = f.readlines()
 
+    # ---- Pass 1: collect labels and compute PC for each line ----
     labels = {}
-    instructions = []
+    raw_lines = []
     pc = 0
 
     for line in lines:
         line = line.split(';')[0].strip()
         if not line:
             continue
+        # Handle labels (possibly multiple on one line)
         while ':' in line:
             label, rest = line.split(':', 1)
             labels[label.strip()] = pc
             line = rest.strip()
-        
         if line:
-            instructions.append((pc, line))
-            pc += 4
+            parts = re.split(r'\s+', line, 1)
+            mnemonic = parts[0].upper()
+            args_str = parts[1] if len(parts) > 1 else ""
+            args = parse_args(args_str)
 
-    binary_prog = []
-    for current_pc, line in instructions:
-        parts = re.split(r'\s+', line, 1)
-        mnemonic = parts[0].upper()
-        args_str = parts[1] if len(parts) > 1 else ""
-        
-        args = []
-        if args_str:
-            curr_arg = ""
-            paren_count = 0
-            for char in args_str:
-                if char == '(': paren_count += 1
-                elif char == ')': paren_count -= 1
-                
-                if char == ',' and paren_count == 0:
-                    args.append(curr_arg.strip())
-                    curr_arg = ""
+            if mnemonic in INSTRUCTIONS:
+                info = INSTRUCTIONS[mnemonic]
+                if info[0] == 'PSEUDO':
+                    pc += 4 * count_pseudo_words(mnemonic, args, labels)
                 else:
-                    curr_arg += char
-            args.append(curr_arg.strip())
+                    pc += 4
+            else:
+                raise ValueError(f"Unknown mnemonic: {mnemonic}")
 
-        if mnemonic not in OPCODES:
-            raise ValueError(f"Unknown mnemonic: {mnemonic} at PC {current_pc}")
-        
-        opcode_info = OPCODES[mnemonic]
-        fmt = opcode_info[1]
-        
+            raw_lines.append(line)
+
+    # ---- Pass 2: re-compute PC with final labels, then encode ----
+    # Re-parse to get accurate PC (labels are now known for LI/LA sizing)
+    labels2 = {}
+    instruction_list = []  # (pc, mnemonic, args)
+    pc = 0
+
+    for line_orig in lines:
+        line = line_orig.split(';')[0].strip()
+        if not line:
+            continue
+        while ':' in line:
+            label, rest = line.split(':', 1)
+            labels2[label.strip()] = pc
+            line = rest.strip()
+        if line:
+            parts = re.split(r'\s+', line, 1)
+            mnemonic = parts[0].upper()
+            args_str = parts[1] if len(parts) > 1 else ""
+            args = parse_args(args_str)
+
+            info = INSTRUCTIONS[mnemonic]
+            if info[0] == 'PSEUDO':
+                n = count_pseudo_words(mnemonic, args, labels2)
+                instruction_list.append((pc, mnemonic, args))
+                pc += 4 * n
+            else:
+                instruction_list.append((pc, mnemonic, args))
+                pc += 4
+
+    # Merge labels
+    labels.update(labels2)
+
+    # ---- Pass 3: encode ----
+    binary_prog = []
+    for current_pc, mnemonic, args in instruction_list:
+        info = INSTRUCTIONS[mnemonic]
         try:
-            instr_bin = encode_instr(opcode_info, fmt, args, current_pc, labels)
-            binary_prog.append(instr_bin)
+            if info[0] == 'PSEUDO':
+                expanded = expand_pseudo(mnemonic, args, current_pc, labels)
+                epc = current_pc
+                for emnem, eargs in expanded:
+                    word = encode_instruction(emnem, eargs, epc, labels)
+                    binary_prog.append(word)
+                    epc += 4
+            else:
+                word = encode_instruction(mnemonic, args, current_pc, labels)
+                binary_prog.append(word)
         except Exception as e:
-            print(f"Error assembling line: {line}")
+            print(f"Error at PC 0x{current_pc:04x}: {mnemonic} {' '.join(args)}")
             raise e
 
+    # ---- Write output ----
     with open(output_file, 'w') as f:
         for instr in binary_prog:
             f.write(f"{instr:08x}\n")
-    
+
     print(f"Successfully assembled {len(binary_prog)} instructions to {output_file}")
+
+
+def parse_args(args_str):
+    """Parse argument string, respecting parentheses in memory operands."""
+    args = []
+    if not args_str.strip():
+        return args
+    curr_arg = ""
+    paren_count = 0
+    for char in args_str:
+        if char == '(':
+            paren_count += 1
+        elif char == ')':
+            paren_count -= 1
+        if char == ',' and paren_count == 0:
+            args.append(curr_arg.strip())
+            curr_arg = ""
+        else:
+            curr_arg += char
+    args.append(curr_arg.strip())
+    return args
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

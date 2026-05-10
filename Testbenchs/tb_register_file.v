@@ -4,9 +4,9 @@ module tb_register_file();
 
     reg clk;
     reg rst;
-    reg [5:0] rs1_addr;
-    reg [5:0] rs2_addr;
-    reg [5:0] rd_addr;
+    reg [4:0] rs1_addr;
+    reg [4:0] rs2_addr;
+    reg [4:0] rd_addr;
     reg [31:0] wr_data;
     reg we;
     
@@ -48,12 +48,12 @@ module tb_register_file();
 
         // Test 1: Write R3, read R3
         @(negedge clk);
-        rd_addr = 6'd3;
+        rd_addr = 5'd3;
         wr_data = 32'h000000B0;
         we = 1;
 
         @(negedge clk);
-        rd_addr = 6'd11;
+        rd_addr = 5'd11;
         wr_data = 32'h000000B1;
         we = 1;
 
@@ -61,8 +61,8 @@ module tb_register_file();
         we = 0;
 
         // Verify reads
-        rs1_addr = 6'd3;
-        rs2_addr = 6'd11;
+        rs1_addr = 5'd3;
+        rs2_addr = 5'd11;
         #1;
         if (rs1_data !== 32'h000000B0) 
             $display("FAIL: Test 1 (Read R3) expected 000000B0, got %h", rs1_data);
@@ -74,38 +74,30 @@ module tb_register_file();
         else 
             $display("PASS: Test 2 (Read R11 is correct)");
 
-        // Test 3: Read and Write ACC (addr=32) and B (addr=33)
+        // Test 2: Internal Forwarding (Write-before-Read)
         @(negedge clk);
-        rd_addr = 6'd32; // ACC
-        wr_data = 32'hAAAAAAAA;
+        rd_addr = 5'd7;
+        wr_data = 32'h12345678;
         we = 1;
-
-        @(negedge clk);
-        rd_addr = 6'd33; // B
-        wr_data = 32'hBBBBBBBB;
-        we = 1;
+        rs1_addr = 5'd7; // Reading same register being written
+        #1;
+        if (rs1_data !== 32'h12345678)
+            $display("FAIL: Test 3 (Internal Forwarding) expected 12345678, got %h", rs1_data);
+        else
+            $display("PASS: Test 3 (Internal Forwarding is correct)");
 
         @(negedge clk);
         we = 0;
 
-        // Verify ACC and B
-        rs1_addr = 6'd32;
-        rs2_addr = 6'd33;
-        #1;
-        if (rs1_data !== 32'hAAAAAAAA || rs2_data !== 32'hBBBBBBBB)
-            $display("FAIL: Test 3 (ACC and B) ACC=%h, B=%h", rs1_data, rs2_data);
-        else
-            $display("PASS: Test 3 (ACC and B read/write is correct)");
-
-        // Test 4: R0 is hardwired to 0
+        // Test 3: R0 is hardwired to 0
         @(negedge clk);
-        rd_addr = 6'd0;
+        rd_addr = 5'd0;
         wr_data = 32'hFFFFFFFF;
         we = 1;
 
         @(negedge clk);
         we = 0;
-        rs1_addr = 6'd0;
+        rs1_addr = 5'd0;
         #1;
         if (rs1_data !== 32'd0)
             $display("FAIL: Test 4 (R0 write test) expected 0, got %h", rs1_data);

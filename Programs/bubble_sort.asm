@@ -23,7 +23,7 @@ OuterLoop:
         LW x6, 0(x8)   ; x6 = arr[j+1]
         
         ; If arr[j] <= arr[j+1], branch past the swap entirely
-        BLE x5, x6, SkipSwap   
+        BGE x6, x5, SkipSwap   
         
         ; If we didn't branch, it means arr[j] > arr[j+1] (Swap them)
         DoSwap:
