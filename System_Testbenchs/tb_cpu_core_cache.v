@@ -43,11 +43,12 @@ module tb_cpu_core_cache;
 
         $display("--- RISC-V CPU + Cache Integration Test ---");
         $monitor("Time=%0t | PC=%h | Instr=%h | x3=%h | x5=%h | x6=%h | Stall=%b", 
-                 $time, uut.cpu.pc, uut.cpu.instr_in, 
+                 $time, uut.cpu.ibus_addr, uut.cpu.ibus_rdata, 
                  uut.cpu.rf.gp_regs[3].reg_inst.q,
                  uut.cpu.rf.gp_regs[5].reg_inst.q,
                  uut.cpu.rf.gp_regs[6].reg_inst.q,
                  stall_cpu);
+
         
         clk = 0;
         rst = 1;

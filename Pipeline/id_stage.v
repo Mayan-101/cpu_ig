@@ -18,6 +18,7 @@ module id_stage (
     input  wire [31:0] if_id_pc_plus4,
     input  wire [31:0] regfile_rs1,
     input  wire [31:0] regfile_rs2,
+    input  wire [31:0] mepc,
 
     output wire [4:0]  rs1_addr,
     output wire [4:0]  rs2_addr,
@@ -42,6 +43,7 @@ module id_stage (
     output reg  [4:0]  id_ex_rs1_addr,
     output reg  [4:0]  id_ex_rs2_addr,
     output reg  [31:0] id_ex_pc_plus4,
+    output reg  [31:0] id_ex_mepc,
     output reg         id_ex_is_reti,
     output reg         id_ex_is_halt
 );
@@ -103,6 +105,7 @@ module id_stage (
             id_ex_rs1_addr  <= 5'd0;
             id_ex_rs2_addr  <= 5'd0;
             id_ex_pc_plus4  <= 32'd0;
+            id_ex_mepc      <= 32'd0;
             id_ex_is_reti   <= 0;
             id_ex_is_halt   <= 0;
         end else if (!stall) begin
@@ -125,8 +128,10 @@ module id_stage (
             id_ex_rs1_addr  <= rs1_addr;
             id_ex_rs2_addr  <= rs2_addr;
             id_ex_pc_plus4  <= if_id_pc_plus4;
+            id_ex_mepc      <= mepc;
             id_ex_is_reti   <= is_reti;
             id_ex_is_halt   <= is_halt;
         end
     end
 endmodule
+

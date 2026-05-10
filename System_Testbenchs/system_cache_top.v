@@ -19,13 +19,14 @@ module system_cache_top (
 
     cpu_top cpu (
         .clk(clk), .rst(rst),
-        .pc(pc), .instr_in(instr_in), .icache_hit(1'b1),
-        .dmem_addr(dmem_addr), .dmem_wr_data(dmem_wr_data), .dmem_we(dmem_we), .dmem_re(dmem_re),
-        .dmem_rd_data(dmem_rd_data), .dcache_ready(1'b1),
-        .io_data_in(io_rdata_bus),
+        .ibus_addr(pc), .ibus_rdata(instr_in), .ibus_ready(1'b1),
+        .dbus_addr(dmem_addr), .dbus_wdata(dmem_wr_data), .dbus_we(dmem_we), .dbus_re(dmem_re),
+        .dbus_rdata(dmem_rd_data), .dbus_ready(1'b1),
+        .dbus_io_rdata(io_rdata_bus),
         .irq(irq_signal),
         .halt_cpu(halt_cpu)
     );
+
 
     wire [31:0] itcm_data, dtcm_data, ram_data;
     wire is_itcm = (pc < 32'h0000_4000); // 16 KB

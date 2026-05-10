@@ -28,6 +28,7 @@ iverilog -g2012 -o universal_sim.vvp -I opcode ^
     ALU/booth_encoder.v ALU/booth_step.v ALU/divider.v ^
     ALU/float_add_sub.v ALU/float_mul.v ALU/float_norm.v ALU/float_unpacker.v ^
     ALU/float_packer.v ALU/mantissa_aligner.v ALU/float_itof.v ALU/float_ftoi.v ^
+    ALU/fpu_top.v ^
     Pipeline/cpu_top.v Pipeline/csr_unit.v Pipeline/if_stage.v Pipeline/id_stage.v Pipeline/ex_stage.v ^
     Pipeline/mem_stage.v Pipeline/wb_stage.v Pipeline/control_unit.v ^
     Pipeline/imm_extender.v Pipeline/hazard_detection_unit.v Pipeline/forwarding_unit.v ^
@@ -35,9 +36,10 @@ iverilog -g2012 -o universal_sim.vvp -I opcode ^
     RegisterFile/register_file.v RegisterFile/reg32.v ^
     Memory/address_decoder.v Memory/ram.v Memory/itcm.v Memory/dtcm.v ^
     Memory/ram_async.v Memory/l1_cache.v Memory/addr_decomp.v Memory/cache_sram_way.v ^
-    Memory/cache_core_4way.v Memory/cache_core_8way.v Memory/lru_unit.v Memory/l2_cache.v ^
+    Memory/cache_core.v Memory/lru_unit.v Memory/l2_cache.v ^
     Peripherals/io_peripheral_bus.v Peripherals/gpio_top.v Peripherals/timer_top.v Peripherals/uart_top.v ^
     Peripherals/interrupt_controller.v
+
 if %errorlevel% neq 0 exit /b 1
 
 echo [3/3] Simulating %PROG%...

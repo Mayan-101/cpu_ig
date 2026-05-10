@@ -14,10 +14,15 @@ module tb_cache_core_4way;
     wire [1:0] evict_way;
     wire [63:0] evict_data;
 
-    cache_core_4way #(
-        .INDEX_WIDTH(1), // 2 sets
-        .TAG_WIDTH(28),
-        .DATA_WIDTH(64)
+    localparam INDEX_WIDTH = 1;
+    localparam TAG_WIDTH = 28;
+    localparam DATA_WIDTH = 64;
+
+    cache_core #(
+        .INDEX_WIDTH(INDEX_WIDTH),
+        .TAG_WIDTH(TAG_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .WAYS(4)
     ) dut (
         .clk(clk),
         .rst(rst),

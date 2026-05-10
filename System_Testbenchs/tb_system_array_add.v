@@ -102,11 +102,12 @@ module tb_system_array_add;
     // Monitor for debug
     initial begin
         $monitor("Time=%0t | PC=%h | Instr=%h | x1=%h | x4=%d | x7=%d | Br=%b | BrTgt=%h | Stall=%b", 
-                 $time, uut.cpu.pc, uut.cpu.instr_in, 
+                 $time, uut.cpu.ibus_addr, uut.cpu.ibus_rdata, 
                  uut.cpu.rf.gp_regs[1].reg_inst.q,
                  uut.cpu.rf.gp_regs[4].reg_inst.q,
                  uut.cpu.rf.gp_regs[7].reg_inst.q,
                  uut.cpu.take_branch, uut.cpu.branch_target, stall_cpu);
     end
+
 
 endmodule

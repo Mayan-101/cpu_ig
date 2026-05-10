@@ -5,31 +5,33 @@ module tb_cpu_core();
     reg clk;
     reg rst;
     
-    wire [31:0] pc;
-    reg [31:0] instr_in;
-    wire icache_hit = 1'b1;
+    wire [31:0] pc_bus;
+    reg [31:0] instr_bus;
+    wire icache_ready = 1'b1;
     
-    wire [31:0] dmem_addr;
-    wire [31:0] dmem_wr_data;
-    wire dmem_we;
-    wire dmem_re;
-    reg [31:0] dmem_rd_data;
-    wire dcache_hit = 1'b1;
+    wire [31:0] dbus_addr;
+    wire [31:0] dbus_wdata;
+    wire dbus_we;
+    wire dbus_re;
+    reg [31:0] dbus_rdata;
+    wire dcache_ready = 1'b1;
     
-    wire [31:0] io_data_in = 32'd0;
+    wire [31:0] dbus_io_rdata = 32'd0;
 
     cpu_top uut (
         .clk(clk), .rst(rst),
-        .pc(pc), .instr_in(instr_in), .icache_hit(icache_hit),
-        .dmem_addr(dmem_addr), .dmem_wr_data(dmem_wr_data), .dmem_we(dmem_we), .dmem_re(dmem_re),
-        .dmem_rd_data(dmem_rd_data), .dcache_ready(dcache_hit),
-        .io_data_in(io_data_in)
+        .ibus_addr(pc_bus), .ibus_rdata(instr_bus), .ibus_ready(icache_ready),
+        .dbus_addr(dbus_addr), .dbus_wdata(dbus_wdata), .dbus_we(dbus_we), .dbus_re(dbus_re),
+        .dbus_rdata(dbus_rdata), .dbus_ready(dcache_ready),
+        .dbus_io_rdata(dbus_io_rdata)
     );
+
 
     reg [31:0] imem [0:63];
     always @(*) begin
-        instr_in = imem[pc[7:2]];
+        instr_bus = imem[pc_bus[7:2]];
     end
+
 
     initial begin
         clk = 0;

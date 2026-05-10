@@ -28,7 +28,7 @@ module ex_stage (
     input  wire [31:0] id_ex_rs1_data,
     input  wire [31:0] id_ex_rs2_data,
     input  wire [31:0] id_ex_imm32,
-    input  wire [31:0] mepc,
+    input  wire [31:0] id_ex_mepc,
 
     input  wire [4:0]  id_ex_rd_addr,
     input  wire [31:0] id_ex_pc_plus4,
@@ -86,6 +86,11 @@ module ex_stage (
     wire alu_done;
     wire [31:0] psw_out;
 
+    wire [31:0] alu_res_int, alu_res_float;
+    wire alu_done_int, alu_done_float;
+    wire [31:0] psw_int, psw_float;
+
+
     reg alu_started;
     always @(posedge clk) begin
         if (rst)
@@ -101,18 +106,29 @@ module ex_stage (
         .clk(clk), .rst(rst), .start(start_alu),
         .a(alu_in_a), .b(alu_in_b),
         .opcode(id_ex_opcode), .funct3(id_ex_funct3), .funct7(id_ex_funct7),
-        .is_float(id_ex_is_float),
-        .result(alu_result), .done(alu_done), .psw_out(psw_out)
+        .result(alu_res_int), .done(alu_done_int), .psw_out(psw_int)
     );
+
+    fpu_top fpu_inst (
+        .clk(clk), .rst(rst), .enable(id_ex_is_float), .start(start_alu),
+        .a(alu_in_a), .b(alu_in_b), .funct7(id_ex_funct7),
+        .result(alu_res_float), .done(alu_done_float), .psw_out(psw_float)
+    );
+
+    assign alu_result = id_ex_is_float ? alu_res_float : alu_res_int;
+    assign alu_done   = id_ex_is_float ? alu_done_float : alu_done_int;
+    assign psw_out    = id_ex_is_float ? psw_float : psw_int;
 
     branch_target_calc btc (
         .pc(id_ex_pc_plus4), .imm32(id_ex_imm32),
-        .valA(valA), .valB(valB), .mepc(mepc),
+        .valA(valA), .valB(valB), .mepc(id_ex_mepc),
         .opcode(id_ex_opcode), .funct3(id_ex_funct3),
         .branch(id_ex_branch), .jump(id_ex_jump),
         .is_reti(id_ex_is_reti),
         .target(branch_target), .take_branch(take_branch)
     );
+
+
 
     assign alu_stall = is_multi_cycle && !alu_done;
 

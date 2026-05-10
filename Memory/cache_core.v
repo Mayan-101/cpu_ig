@@ -1,9 +1,15 @@
 `timescale 1ns / 1ps
 
-module cache_core_4way #(
+/**
+ * Module: cache_core
+ * Description: Parameterized set-associative cache core.
+ *              Supports N-way associativity.
+ */
+module cache_core #(
     parameter INDEX_WIDTH = 1,
     parameter TAG_WIDTH = 28,
-    parameter DATA_WIDTH = 64
+    parameter DATA_WIDTH = 64,
+    parameter WAYS = 4
 )(
     input  wire clk,
     input  wire rst,
@@ -14,7 +20,7 @@ module cache_core_4way #(
     
     output wire [DATA_WIDTH-1:0] rd_data,
     output wire hit,
-    output wire [1:0] evict_way,
+    output wire [$clog2(WAYS)-1:0] evict_way,
     output wire [DATA_WIDTH-1:0] evict_data
 );
 
@@ -33,32 +39,43 @@ module cache_core_4way #(
         .block_offset(offset)
     );
 
-    wire [TAG_WIDTH-1:0] w_rd_tag [0:3];
-    wire [DATA_WIDTH-1:0] w_rd_data [0:3];
-    wire w_valid [0:3];
-    wire w_dirty [0:3];
+    wire [TAG_WIDTH-1:0] w_rd_tag [0:WAYS-1];
+    wire [DATA_WIDTH-1:0] w_rd_data [0:WAYS-1];
+    wire w_valid [0:WAYS-1];
+    wire w_dirty [0:WAYS-1];
 
-    wire [3:0] way_hit;
-    wire [1:0] hit_way_idx;
+    wire [WAYS-1:0] way_hit;
+    reg [$clog2(WAYS)-1:0] hit_way_idx;
 
-    assign way_hit[0] = w_valid[0] && (w_rd_tag[0] == tag);
-    assign way_hit[1] = w_valid[1] && (w_rd_tag[1] == tag);
-    assign way_hit[2] = w_valid[2] && (w_rd_tag[2] == tag);
-    assign way_hit[3] = w_valid[3] && (w_rd_tag[3] == tag);
+    genvar i;
+    generate
+        for (i = 0; i < WAYS; i = i + 1) begin : hit_logic
+            assign way_hit[i] = w_valid[i] && (w_rd_tag[i] == tag);
+        end
+    endgenerate
     
     assign hit = |way_hit;
-    assign hit_way_idx = way_hit[3] ? 2'd3 : 
-                         way_hit[2] ? 2'd2 : 
-                         way_hit[1] ? 2'd1 : 2'd0;
+
+    always @(*) begin
+        hit_way_idx = 0;
+        begin : find_hit
+            integer k;
+            for (k = 0; k < WAYS; k = k + 1) begin
+                if (way_hit[k]) begin
+                    hit_way_idx = k[$clog2(WAYS)-1:0];
+                    disable find_hit;
+                end
+            end
+        end
+    end
 
     assign rd_data = hit ? w_rd_data[hit_way_idx] : w_rd_data[evict_way];
     assign evict_data = w_rd_data[evict_way];
 
-    wire [1:0] target_way = hit ? hit_way_idx : evict_way;
+    wire [$clog2(WAYS)-1:0] target_way = hit ? hit_way_idx : evict_way;
 
-    genvar i;
     generate
-        for (i = 0; i < 4; i = i + 1) begin : ways
+        for (i = 0; i < WAYS; i = i + 1) begin : ways
             wire way_we = we && (target_way == i);
             
             cache_sram_way #(
@@ -79,13 +96,15 @@ module cache_core_4way #(
         end
     endgenerate
 
-    wire [1:0] lru_way_out [0:(1<<INDEX_WIDTH)-1];
+    wire [$clog2(WAYS)-1:0] lru_way_out [0:(1<<INDEX_WIDTH)-1];
     
     generate
         for (i = 0; i < (1<<INDEX_WIDTH); i = i + 1) begin : lru_insts
             wire update_en = (index == i) && ((hit && (re || we)) || (we && !hit));
             
-            lru_unit lru (
+            lru_unit #(
+                .WAYS(WAYS)
+            ) lru (
                 .clk(clk),
                 .rst(rst),
                 .access_way(target_way),

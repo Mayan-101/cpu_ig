@@ -46,10 +46,11 @@ module l1_cache #(
     wire [1:0] evict_way;
     wire [63:0] evict_data;
 
-    cache_core_4way #(
+    cache_core #(
         .INDEX_WIDTH(INDEX_WIDTH),
         .TAG_WIDTH(TAG_WIDTH),
-        .DATA_WIDTH(64)
+        .DATA_WIDTH(64),
+        .WAYS(4)
     ) core (
         .clk(clk),
         .rst(reset),
@@ -62,6 +63,7 @@ module l1_cache #(
         .evict_way(evict_way),
         .evict_data(evict_data)
     );
+
 
     localparam IDLE = 2'b00, ALLOCATE = 2'b01, WRITE_WAIT = 2'b10;
     reg [1:0] state, next_state;

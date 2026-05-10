@@ -1,32 +1,40 @@
 `timescale 1ns / 1ps
 
-module lru_unit (
+module lru_unit #(
+    parameter WAYS = 4
+)(
     input  wire clk,
     input  wire rst,
-    input  wire [1:0] access_way,
+    input  wire [$clog2(WAYS)-1:0] access_way,
     input  wire update_en,
-    output reg  [1:0] lru_way
+    output reg  [$clog2(WAYS)-1:0] lru_way
 );
 
-    reg [1:0] age [0:3];
+    reg [$clog2(WAYS)-1:0] age [0:WAYS-1];
 
     always @(*) begin
-        if (age[0] == 2'b00) lru_way = 2'd0;
-        else if (age[1] == 2'b00) lru_way = 2'd1;
-        else if (age[2] == 2'b00) lru_way = 2'd2;
-        else lru_way = 2'd3;
+        lru_way = 0;
+        begin : find_lru
+            integer k;
+            for (k = 0; k < WAYS; k = k + 1) begin
+                if (age[k] == 0) begin
+                    lru_way = k[$clog2(WAYS)-1:0];
+                    disable find_lru;
+                end
+            end
+        end
     end
 
     integer i;
     always @(posedge clk) begin
         if (rst) begin
-            for (i = 0; i < 4; i = i + 1) begin
-                age[i] <= 2'b00;
+            for (i = 0; i < WAYS; i = i + 1) begin
+                age[i] <= i[$clog2(WAYS)-1:0]; // Initialize with unique ages
             end
         end else if (update_en) begin
-            for (i = 0; i < 4; i = i + 1) begin
+            for (i = 0; i < WAYS; i = i + 1) begin
                 if (i == access_way) begin
-                    age[i] <= 2'b11;
+                    age[i] <= WAYS[$clog2(WAYS)-1:0] - 1'b1;
                 end else begin
                     if (age[i] > age[access_way]) begin
                         age[i] <= age[i] - 1'b1;
@@ -37,3 +45,4 @@ module lru_unit (
     end
 
 endmodule
+

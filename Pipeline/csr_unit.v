@@ -14,10 +14,10 @@ module csr_unit (
     // Stall control (gate CSR updates during cache stalls)
     input  wire        stall,
 
-    // Memory-mapped write port (from MEM stage)
-    input  wire [31:0] dmem_addr,
-    input  wire [31:0] dmem_wr_data,
-    input  wire        dmem_we,
+    // Dedicated CSR write port (from MEM stage)
+    input  wire [31:0] csr_addr,
+    input  wire [31:0] csr_wr_data,
+    input  wire        csr_we,
 
     // EI/DI from EX stage (custom-0 opcode + funct3)
     input  wire [6:0]  ex_opcode,
@@ -35,6 +35,7 @@ module csr_unit (
     output wire        int_taken
 );
 
+
     assign int_taken = (irq == 1'b1) && (psw[31] == 1'b1);
 
     always @(posedge clk or posedge rst) begin
@@ -44,12 +45,13 @@ module csr_unit (
             mepc    <= 32'h0000_0000;
             mstatus <= 32'h0000_0000;
         end else if (!stall) begin
-            // Memory-mapped CSR writes
-            if (dmem_we) begin
-                if (dmem_addr == 32'h8000_0000) mtvec   <= dmem_wr_data;
-                if (dmem_addr == 32'h8000_0004) mepc    <= dmem_wr_data;
-                if (dmem_addr == 32'h8000_0008) mstatus <= dmem_wr_data;
+            // Dedicated CSR writes
+            if (csr_we) begin
+                if (csr_addr == 32'h8000_0000) mtvec   <= csr_wr_data;
+                if (csr_addr == 32'h8000_0004) mepc    <= csr_wr_data;
+                if (csr_addr == 32'h8000_0008) mstatus <= csr_wr_data;
             end
+
             // SEI/CLI: interrupt enable/disable via CUSTOM-0 opcode
             if (ex_opcode == `OPC_CUSTOM0) begin
                 if (ex_funct3 == `F3_SEI) psw[31] <= 1'b1;

@@ -23,6 +23,7 @@ module tb_ex_stage;
     reg [31:0] id_ex_rs1_data;
     reg [31:0] id_ex_rs2_data;
     reg [31:0] id_ex_imm32;
+    reg [31:0] id_ex_mepc;
     reg [4:0]  id_ex_rd_addr;
     reg [31:0] id_ex_pc_plus4;
     
@@ -67,6 +68,7 @@ module tb_ex_stage;
         .id_ex_rs1_data(id_ex_rs1_data),
         .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32),
+        .id_ex_mepc(id_ex_mepc),
         .id_ex_rd_addr(id_ex_rd_addr),
         .id_ex_pc_plus4(id_ex_pc_plus4),
         .fwd_ex_mem_data(fwd_ex_mem_data),
@@ -89,6 +91,7 @@ module tb_ex_stage;
         .take_branch(take_branch),
         .branch_target(branch_target)
     );
+
 
     always #5 clk = ~clk;
 
@@ -113,7 +116,9 @@ module tb_ex_stage;
         id_ex_rs1_data = 0;
         id_ex_rs2_data = 0;
         id_ex_imm32 = 0;
+        id_ex_mepc = 0;
         id_ex_rd_addr = 0;
+
         id_ex_pc_plus4 = 0;
         stall_in = 0;
         fwd_ex_mem_data = 0;

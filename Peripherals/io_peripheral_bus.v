@@ -33,9 +33,11 @@ module io_peripheral_bus (
     wire timer_sel = (io_addr[11:8] == 4'h1); // 0x100-0x1FF
     wire uart_sel  = (io_addr[11:8] == 4'h2); // 0x200-0x2FF
     wire intc_sel  = (io_addr[11:8] == 4'h3); // 0x300-0x3FF
+    wire slot5_sel = (io_addr[11:8] == 4'h4); // 0x400-0x4FF (New Slot)
 
     // Read Data wires
     wire [31:0] gpio_rdata, timer_rdata, uart_rdata, intc_rdata;
+    wire [31:0] slot5_rdata = 32'hDEAD_BEEF; // Default for unassigned slot
     
     // IRQ wires from peripherals
     wire timer0_irq, timer1_irq, uart_irq;
@@ -79,10 +81,11 @@ module io_peripheral_bus (
 
     // Read Data Mux
     always @(*) begin
-        if (gpio_sel)  io_rdata = gpio_rdata;
+        if (gpio_sel)       io_rdata = gpio_rdata;
         else if (timer_sel) io_rdata = timer_rdata;
         else if (uart_sel)  io_rdata = uart_rdata;
         else if (intc_sel)  io_rdata = intc_rdata;
+        else if (slot5_sel) io_rdata = slot5_rdata;
         else                io_rdata = 32'd0;
     end
 

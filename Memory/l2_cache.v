@@ -37,10 +37,11 @@ module l2_cache (
     
     // 128 KB, 8-way, 8B line:
     // Way = 16 KB. Sets = 2048. INDEX_WIDTH = 11. TAG_WIDTH = 18.
-    cache_core_8way #(
+    cache_core #(
         .INDEX_WIDTH(11), 
         .TAG_WIDTH(18),
-        .DATA_WIDTH(64)
+        .DATA_WIDTH(64),
+        .WAYS(8)
     ) core (
         .clk(clk),
         .rst(rst),
@@ -53,6 +54,7 @@ module l2_cache (
         .evict_way(core_evict_way),
         .evict_data(core_evict_data)
     );
+
 
     wire [2:0] offset = addr[2:0];
 

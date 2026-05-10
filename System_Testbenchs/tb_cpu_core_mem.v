@@ -41,10 +41,11 @@ module tb_cpu_core_mem();
 
         $display("--- RISC-V CPU Core + Memory Integration Test ---");
         $monitor("Time=%0t | PC=%h | Instr=%h | x3=%h | x5=%h | ram_we=%b", 
-                 $time, uut.cpu.pc, uut.cpu.instr_in, 
+                 $time, uut.cpu.ibus_addr, uut.cpu.ibus_rdata, 
                  uut.cpu.rf.gp_regs[3].reg_inst.q,
                  uut.cpu.rf.gp_regs[5].reg_inst.q,
                  uut.ram_we_d);
+
         rst = 1;
         #20 rst = 0;
 

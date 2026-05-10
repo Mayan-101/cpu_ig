@@ -30,6 +30,11 @@ module mem_stage (
     // Hazard/Stall Control
     output wire cache_stall,
 
+    // CSR Interface
+    output wire [31:0] csr_addr,
+    output wire [31:0] csr_wr_data,
+    output wire        csr_we,
+
     // MEM/WB Pipeline Register Outputs
     output reg  [31:0] mem_wb_alu_result,
     output reg  [31:0] mem_wb_mem_data,
@@ -40,10 +45,16 @@ module mem_stage (
     output reg         mem_wb_is_halt
 );
 
+    wire is_csr_access = (ex_mem_alu_result[31:16] == 16'h8000);
+    assign csr_addr    = ex_mem_alu_result;
+    assign csr_wr_data = ex_mem_wr_data;
+    assign csr_we      = ex_mem_mem_write && is_csr_access;
+
     assign dcache_addr    = ex_mem_alu_result;
     assign dcache_wr_data = ex_mem_wr_data;
-    assign dcache_we      = ex_mem_mem_write;
-    assign dcache_re      = ex_mem_mem_read;
+    assign dcache_we      = ex_mem_mem_write && !is_csr_access;
+    assign dcache_re      = ex_mem_mem_read && !is_csr_access;
+
 
     assign cache_stall = ((ex_mem_mem_read == 1'b1) || (ex_mem_mem_write == 1'b1)) && (dcache_hit == 1'b0);
 

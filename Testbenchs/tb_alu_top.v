@@ -25,7 +25,6 @@ module tb_alu_top;
         .opcode(opcode),
         .funct3(funct3),
         .funct7(funct7),
-        .is_float(is_float),
         .result(result),
         .done(done),
         .psw_out(psw_out)
@@ -45,7 +44,6 @@ module tb_alu_top;
         opcode = 0;
         funct3 = 0;
         funct7 = 0;
-        is_float = 0;
         
         #15 rst = 0;
         
@@ -53,7 +51,7 @@ module tb_alu_top;
         @(posedge clk);
         a = 32'd10; b = 32'd20; 
         opcode = `OPC_OP; funct3 = `F3_ADD_SUB; funct7 = `F7_BASE; 
-        is_float = 0; start = 1;
+        start = 1;
         #1; // combinational
         if (result !== 32'd30 || done !== 1'b1) begin
             $display("ERROR: ADD failed. res=%0d (exp: 30), done=%b", result, done);
@@ -68,7 +66,7 @@ module tb_alu_top;
         @(posedge clk);
         a = 32'd5; b = 32'd6; 
         opcode = `OPC_OP; funct3 = `F3_MUL; funct7 = `F7_MULDIV;
-        is_float = 0; start = 1;
+        start = 1;
         #1;
         cycle_count = 0;
         while (!done) begin
@@ -84,27 +82,11 @@ module tb_alu_top;
         start = 0;
         while(done) @(posedge clk);
 
-        // 3. Issue FADD (OP_FP)
-        @(posedge clk);
-        // 1.0 (3f800000) + 1.0 (3f800000) = 2.0 (40000000)
-        a = 32'h3f800000; b = 32'h3f800000; 
-        opcode = `OPC_OP_FP; funct3 = 3'h0; funct7 = `F7_FADD;
-        is_float = 1; start = 1;
-        #1; 
-        if (result !== 32'h40000000 || done !== 1'b1) begin
-            $display("ERROR: FADD failed. res=%h (exp: 40000000), done=%b", result, done);
-            errors = errors + 1;
-        end else begin
-            $display("FADD passed.");
-        end
-        start = 0;
-        while(done) #1;
-
-        // 4. Issue DIV
+        // 3. Issue DIV
         @(posedge clk);
         a = 32'd100; b = 32'd10; 
         opcode = `OPC_OP; funct3 = `F3_DIV; funct7 = `F7_MULDIV;
-        is_float = 0; start = 1;
+        start = 1;
         #1;
         cycle_count = 0;
         while (!done) begin
@@ -126,5 +108,5 @@ module tb_alu_top;
             $display("tb_alu_top FAILED with %0d errors.", errors);
         $finish;
     end
-
 endmodule
+

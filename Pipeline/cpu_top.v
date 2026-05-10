@@ -9,23 +9,21 @@ module cpu_top (
     input  wire        clk,
     input  wire        rst,
 
-    // Instruction Memory Interface
-    output wire [31:0] pc,
-    input  wire [31:0] instr_in,
-    input  wire        icache_hit,
+    // Instruction Bus (IBUS)
+    output wire [31:0] ibus_addr,
+    input  wire [31:0] ibus_rdata,
+    input  wire        ibus_ready,
 
-    // Data Memory Interface
-    output wire [31:0] dmem_addr,
-    output wire [31:0] dmem_wr_data,
-    output wire        dmem_we,
-    output wire        dmem_re,
-    input  wire [31:0] dmem_rd_data,
-    input  wire        dcache_ready,
+    // Data Bus (DBUS)
+    output wire [31:0] dbus_addr,
+    output wire [31:0] dbus_wdata,
+    output wire        dbus_we,
+    output wire        dbus_re,
+    input  wire [31:0] dbus_rdata,
+    input  wire        dbus_ready,
 
-    // I/O Interface
-    input  wire [31:0] io_data_in,
-
-    // System signals
+    // Peripheral/System Interface
+    input  wire [31:0] dbus_io_rdata,
     input  wire        irq,
     output wire        halt_cpu
 );
@@ -34,6 +32,7 @@ module cpu_top (
     wire [31:0] psw;
     wire [31:0] mtvec, mepc, mstatus;
     wire        int_taken;
+
 
     wire [31:0] branch_target;
     wire        take_branch;
@@ -60,13 +59,13 @@ module cpu_top (
             pc_reg <= pc_next;
         end
     end
-    assign pc = pc_reg;
+    assign ibus_addr = pc_reg;
 
     wire [31:0] if_id_instr, if_id_pc_plus4;
     if_stage if_inst (
         .clk(clk), .rst(rst),
         .pc(pc_reg),
-        .icache_data(instr_in), .icache_hit(icache_hit),
+        .icache_data(ibus_rdata), .icache_hit(ibus_ready),
         .flush(flush_IF),
         .if_id_instr(if_id_instr), .if_id_pc_plus4(if_id_pc_plus4),
         .stall_in(pipe_stall || stall_haz),
@@ -88,10 +87,15 @@ module cpu_top (
     wire        id_ex_is_reti;
     wire        id_ex_is_halt;
 
+    wire [31:0] csr_addr, csr_wr_data;
+    wire csr_we;
+    wire [31:0] id_ex_mepc;
+
     id_stage id_inst (
         .clk(clk), .rst(rst), .flush(flush_ID || nop_inject_haz), .stall(pipe_stall),
         .if_id_instr(if_id_instr), .if_id_pc_plus4(if_id_pc_plus4),
         .regfile_rs1(rf_rs1_data), .regfile_rs2(rf_rs2_data),
+        .mepc(mepc),
         .rs1_addr(rs1_addr_id), .rs2_addr(rs2_addr_id),
         .id_ex_opcode(id_ex_opcode), .id_ex_funct3(id_ex_funct3), .id_ex_funct7(id_ex_funct7),
         .id_ex_mem_read(id_ex_mem_read), .id_ex_mem_write(id_ex_mem_write),
@@ -100,6 +104,7 @@ module cpu_top (
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_rs1_addr(id_ex_rs1_addr),
         .id_ex_rs2_addr(id_ex_rs2_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
+        .id_ex_mepc(id_ex_mepc),
         .id_ex_is_reti(id_ex_is_reti),
         .id_ex_is_halt(id_ex_is_halt)
     );
@@ -107,9 +112,9 @@ module cpu_top (
     csr_unit csr_inst (
         .clk(clk), .rst(rst),
         .stall(cache_stall),
-        .dmem_addr(dmem_addr), .dmem_wr_data(dmem_wr_data), .dmem_we(dmem_we),
+        .csr_addr(csr_addr), .csr_wr_data(csr_wr_data), .csr_we(csr_we),
         .ex_opcode(id_ex_opcode), .ex_funct3(id_ex_funct3),
-        .irq(irq), .pc(pc),
+        .irq(irq), .pc(ibus_addr),
         .psw(psw), .mtvec(mtvec), .mepc(mepc), .mstatus(mstatus),
         .int_taken(int_taken)
     );
@@ -133,8 +138,8 @@ module cpu_top (
         .id_ex_is_reti(id_ex_is_reti),
         .id_ex_wb_src(id_ex_wb_src),
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
-        .id_ex_imm32(id_ex_imm32), .mepc(mepc), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
-        .fwd_ex_mem_data(ex_mem_mem_read ? dmem_rd_data : (ex_mem_is_io ? io_data_in : ex_mem_alu_result)),
+        .id_ex_imm32(id_ex_imm32), .id_ex_mepc(id_ex_mepc), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
+        .fwd_ex_mem_data(ex_mem_mem_read ? dbus_rdata : (ex_mem_is_io ? dbus_io_rdata : ex_mem_alu_result)),
         .fwd_mem_wb_data(rf_wr_data),
         .forwardA(forwardA), .forwardB(forwardB),
         .stall_in(cache_stall),
@@ -170,9 +175,10 @@ module cpu_top (
         .ex_mem_reg_write(ex_mem_reg_write), .ex_mem_is_io(ex_mem_is_io), .ex_mem_wb_src(ex_mem_wb_src),
         .ex_mem_funct3(ex_mem_funct3),
         .ex_mem_is_halt(ex_mem_is_halt),
-        .dcache_data(dmem_rd_data), .dcache_hit(dcache_ready),
-        .dcache_addr(dmem_addr), .dcache_wr_data(dmem_wr_data), .dcache_we(dmem_we), .dcache_re(dmem_re),
+        .dcache_data(dbus_rdata), .dcache_hit(dbus_ready),
+        .dcache_addr(dbus_addr), .dcache_wr_data(dbus_wdata), .dcache_we(dbus_we), .dcache_re(dbus_re),
         .cache_stall(cache_stall),
+        .csr_addr(csr_addr), .csr_wr_data(csr_wr_data), .csr_we(csr_we),
         .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
         .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
         .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
@@ -187,9 +193,10 @@ module cpu_top (
         .mem_wb_alu_result(mem_wb_alu_result), .mem_wb_mem_data(mem_wb_mem_data),
         .mem_wb_rd_addr(mem_wb_rd_addr), .mem_wb_reg_write(mem_wb_reg_write),
         .mem_wb_wb_src(mem_wb_wb_src), .mem_wb_is_io(mem_wb_is_io),
-        .io_data_in(io_data_in),
+        .io_data_in(dbus_io_rdata),
         .rf_wr_addr(rf_wr_addr), .rf_wr_data(rf_wr_data), .rf_we(rf_we)
     );
+
 
     // ==== Hazard Management and Core Units ====
     register_file rf (
