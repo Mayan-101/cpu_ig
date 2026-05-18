@@ -1,0 +1,28 @@
+WARNING: Testbenchs/tb_cycle_tracer.v:58: $readmemh(Programs/simple.hex): Not enough words in the file for the requested range [0:4095].
+[TRACER] Program loaded: Programs/simple.hex
+=============================================================
+ RISC-V T-STATE CYCLE TRACER
+=============================================================
+CYC    PC         OP[6:0]   TYPE     T-STATES HAZ    ALU    CACHE 
+-------------------------------------------------------------
+4      0x00000000  0010011  I-ALU     4         0      0      0     
+6      0x00000004  0010011  I-ALU     6         0      0      0     
+6      0x00000008  0110011  R-TYPE    4         0      0      0     
+8      0x0000000c  0100011  STORE     6         0      0      0     
+8      0x00000010  0001011  CUSTOM    4         0      0      0     
+-------------------------------------------------------------
+
+=============================================================
+ INSTRUCTION CLASS SUMMARY
+CLASS         COUNT   TOT-T-ST   AVG-T-ST  TOT-STALL
+-------------------------------------------------------------
+R-TYPE            1          4          4          0
+I-ALU             2         10          5          1
+STORE             1          6          6          1
+CUSTOM            1          4          4          0
+-------------------------------------------------------------
+TOTAL             5          -          -          2
+=============================================================
+
+[TRACER] CPI stall overhead: haz=0  alu=0  cache=0
+Testbenchs/tb_cycle_tracer.v:351: $finish called at 125000 (1ps)

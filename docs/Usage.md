@@ -42,3 +42,19 @@ To test bubble sort:
 - **`<name>`**: The `.asm` filename (without extension).
 - **`[dump_start/end]`**: RAM range to display at completion.
 - **`[hex_mode]`**: `1` for Hex, `0` for Decimal.
+
+## Performance Profiling & Cycle Tracing
+You can run any `.asm` program through the cycle-accurate tracer to analyze pipeline performance, T-states, and stalls (e.g. load-use hazards, cache misses). 
+
+1. Ensure Python and `matplotlib` are installed.
+2. Run the trace batch script:
+```powershell
+.\Scripts\run_cycle_trace.bat <program_name>
+```
+
+This will automatically:
+- Assemble your code using `assembler.py`
+- Compile and run the `tb_cycle_tracer.v` simulation
+- Export the text trace to `Traces/<program_name>_trace.txt`
+- Run the python visualiser `Assembler/plot_cycles.py`
+- Generate and save pipeline waterfall and summary charts in the `Traces/` directory (e.g., `Traces/<program_name>_waterfall.png`).

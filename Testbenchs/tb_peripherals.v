@@ -63,7 +63,7 @@ module tb_peripherals();
         #20 rst = 0;
 
         $monitor("Time=%0t | PC=%h | x5=%d | IRQ=%b | IE=%b | MEPC=%h | IT=%b", 
-                 $time, uut.cpu.ibus_addr, uut.cpu.rf.gp_regs[5].reg_inst.q, uut.irq_signal, uut.cpu.mstatus[3], 
+                 $time, uut.cpu.ibus_addr, uut.cpu.rf.gp_regs[5].reg_inst.q, uut.irq_line, uut.cpu.mstatus[3], 
                  uut.cpu.mepc, uut.cpu.trap_taken);
 
 

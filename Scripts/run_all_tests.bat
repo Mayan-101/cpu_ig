@@ -46,32 +46,37 @@ for %%F in (Testbenchs\tb_*.v) do (
     set "PNAME=!TNAME!                                     "
     set "PNAME=!PNAME:~0,35!"
     
-    echo | set /p="[!TOTAL!] Tests ^| !PNAME! : "
-    
-    set "CMD_COMP=iverilog -g2012 -o sim.vvp %INCS% %LIBS% !TFILE!"
-    !CMD_COMP! > compile_log.txt 2>&1
-    
-    if !errorlevel! neq 0 (
-        echo %RED%FAILED ^(Compilation Error^)%RESET%
-        set /a FAILED+=1
+    if /I "!TNAME!"=="tb_cycle_tracer" (
+        echo | set /p="[!TOTAL!] Tests ^| !PNAME! : "
+        echo %YELLOW%SKIPPED ^(Manual run required^)%RESET%
     ) else (
-        vvp sim.vvp > test_output.txt 2>&1
-        findstr /i "FAIL TIMEOUT" test_output.txt > nul
-        if !errorlevel! equ 0 (
-            echo %RED%FAILED%RESET%
+        echo | set /p="[!TOTAL!] Tests ^| !PNAME! : "
+        
+        set "CMD_COMP=iverilog -g2012 -o sim.vvp %INCS% %LIBS% !TFILE!"
+        !CMD_COMP! > compile_log.txt 2>&1
+        
+        if !errorlevel! neq 0 (
+            echo %RED%FAILED ^(Compilation Error^)%RESET%
             set /a FAILED+=1
         ) else (
-            findstr /i "PASS SUCCESS Complete" test_output.txt > nul
+            vvp sim.vvp > test_output.txt 2>&1
+            findstr /i "FAIL TIMEOUT" test_output.txt > nul
             if !errorlevel! equ 0 (
-                echo %GREEN%PASSED%RESET%
-                set /a PASSED+=1
+                echo %RED%FAILED%RESET%
+                set /a FAILED+=1
             ) else (
-                echo %YELLOW%DONE ^(Manual check required^)%RESET%
-                set /a PASSED+=1
+                findstr /i "PASS SUCCESS Complete" test_output.txt > nul
+                if !errorlevel! equ 0 (
+                    echo %GREEN%PASSED%RESET%
+                    set /a PASSED+=1
+                ) else (
+                    echo %YELLOW%DONE ^(Manual check required^)%RESET%
+                    set /a PASSED+=1
+                )
             )
         )
+        echo    %CYAN%^>%RESET% !CMD_COMP!
     )
-    echo    %CYAN%^>%RESET% !CMD_COMP!
 )
 echo.
 

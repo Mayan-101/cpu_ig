@@ -47,7 +47,7 @@ module cpu_top (
     wire [31:0] pc_next = (pc_src == 2'b01) ? branch_target :
                           (pc_src == 2'b10) ? trap_pc : pc_plus4;
 
-    wire cache_stall; // Forward declaration
+    wire cache_stall; // Driven by mem_stage; forward-declared so pc_stall can use it
 
     wire pc_stall = (stall_haz == 1'b1) || (stall_alu == 1'b1) || (cache_stall == 1'b1) ||
                     (halt_latch == 1'b1) || (ex_mem_is_halt == 1'b1);
@@ -140,6 +140,11 @@ module cpu_top (
     wire ex_mem_is_halt;
     wire [31:0] ex_mem_pc_plus4;
 
+    // EX-EX forwarding data: prefer fresh memory read data, then I/O read data, else ALU result
+    wire [31:0] fwd_ex_mem_data = ex_mem_mem_read ? dbus_rdata :
+                                  ex_mem_is_io    ? dbus_io_rdata :
+                                                    ex_mem_alu_result;
+
     ex_stage ex_inst (
         .clk(clk), .rst(rst),
         .id_ex_opcode(id_ex_opcode), .id_ex_funct3(id_ex_funct3), .id_ex_funct7(id_ex_funct7),
@@ -150,7 +155,7 @@ module cpu_top (
         .id_ex_wb_src(id_ex_wb_src),
         .id_ex_alu_src(id_ex_alu_src), .id_ex_rs1_data(id_ex_rs1_data), .id_ex_rs2_data(id_ex_rs2_data),
         .id_ex_imm32(id_ex_imm32), .id_ex_mepc(mepc), .id_ex_rd_addr(id_ex_rd_addr), .id_ex_pc_plus4(id_ex_pc_plus4),
-        .fwd_ex_mem_data(ex_mem_mem_read ? dbus_rdata : (ex_mem_is_io ? dbus_io_rdata : ex_mem_alu_result)),
+        .fwd_ex_mem_data(fwd_ex_mem_data),
         .fwd_mem_wb_data(rf_wr_data),
         .forwardA(forwardA), .forwardB(forwardB),
         .stall_in(cache_stall),
@@ -233,13 +238,14 @@ module cpu_top (
         .forwardA(forwardA), .forwardB(forwardB)
     );
 
-    wire bhh_pc_src;
+    // bhh drives flush and the branch-taken 1-bit pc_src; trap overrides to 2'b10
+    wire bhh_branch_taken;
     branch_hazard_handler bhh (
         .take_branch(take_branch), .branch_target(branch_target),
-        .pc_src(bhh_pc_src), .flush_IF(flush_IF), .flush_ID(flush_ID),
+        .pc_src(bhh_branch_taken), .flush_IF(flush_IF), .flush_ID(flush_ID),
         .int_taken(trap_taken)
     );
-    assign pc_src = (trap_taken == 1'b1) ? 2'b10 : {1'b0, (bhh_pc_src == 1'b1)};
+    assign pc_src = (trap_taken == 1'b1) ? 2'b10 : {1'b0, bhh_branch_taken};
 
 
 endmodule
