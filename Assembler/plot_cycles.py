@@ -179,12 +179,11 @@ def plot_waterfall(instrs, ax, max_instr=None):
                 ax.text(c + stall_total / 2, y, f"+{stall_total}",
                         ha="center", va="center", color="white",
                         fontsize=6, fontweight="bold")
-                c += stall_total
                 # then MEM
-                ax.barh(y, 1, left=c, height=0.6,
+                ax.barh(y, 1, left=c + stall_total, height=0.6,
                         color=color, alpha=bar_alpha,
                         edgecolor=BG_COLOR, linewidth=0.5)
-                ax.text(c + 0.5, y, sname[:2],
+                ax.text(c + stall_total + 0.5, y, sname[:2],
                         ha="center", va="center", color="white",
                         fontsize=5.5, fontweight="bold")
             else:
