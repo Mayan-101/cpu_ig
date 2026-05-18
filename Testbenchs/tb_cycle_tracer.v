@@ -67,7 +67,7 @@ module tb_cycle_tracer;
     // =========================================================================
     integer cycle_cnt;
     initial cycle_cnt = 0;
-    always @(posedge clk) if (!rst) cycle_cnt = cycle_cnt + 1;
+    always @(posedge clk) if (!rst) cycle_cnt <= cycle_cnt + 1;
 
     // =========================================================================
     //  Hierarchical pipeline signal aliases
@@ -224,9 +224,9 @@ module tb_cycle_tracer;
     // =========================================================================
     always @(posedge clk) begin
         if (!rst) begin
-            if (h_stall_haz)   cum_haz   = cum_haz   + 1;
-            if (h_stall_alu)   cum_alu   = cum_alu   + 1;
-            if (h_cache_stall) cum_cache = cum_cache + 1;
+            if (h_stall_haz)   cum_haz   <= cum_haz   + 1;
+            if (h_stall_alu)   cum_alu   <= cum_alu   + 1;
+            if (h_cache_stall) cum_cache <= cum_cache + 1;
         end
     end
 
@@ -239,11 +239,11 @@ module tb_cycle_tracer;
             if ((h_if_id_instr != 32'd0) &&
                 (h_if_id_pc_plus4 != prev_if_id_pc)) begin
 
-                sb_pc [sb_head % SB_DEPTH] = h_if_id_pc_plus4 - 32'd4;
-                sb_cyc[sb_head % SB_DEPTH] = cycle_cnt;
-                sb_op [sb_head % SB_DEPTH] = h_if_id_instr[6:0];
-                sb_val[sb_head % SB_DEPTH] = 1;
-                sb_head = sb_head + 1;
+                sb_pc [sb_head % SB_DEPTH] <= h_if_id_pc_plus4 - 32'd4;
+                sb_cyc[sb_head % SB_DEPTH] <= cycle_cnt;
+                sb_op [sb_head % SB_DEPTH] <= h_if_id_instr[6:0];
+                sb_val[sb_head % SB_DEPTH] <= 1;
+                sb_head <= sb_head + 1;
             end
             prev_if_id_pc    <= h_if_id_pc_plus4;
             prev_if_id_instr <= h_if_id_instr;
@@ -288,13 +288,13 @@ module tb_cycle_tracer;
                 hist_tstates[r_class] = hist_tstates[r_class] + retire_t;
                 hist_stalls [r_class] = hist_stalls [r_class] + extra_stalls;
 
-                sb_val[sb_tail % SB_DEPTH] = 0;
-                sb_tail = sb_tail + 1;
+                sb_val[sb_tail % SB_DEPTH] <= 0;
+                sb_tail <= sb_tail + 1;
             end
 
-            snap_haz   = cum_haz;
-            snap_alu   = cum_alu;
-            snap_cache = cum_cache;
+            snap_haz   <= cum_haz;
+            snap_alu   <= cum_alu;
+            snap_cache <= cum_cache;
         end else begin
             prev_mem_wb_pc <= h_mem_wb_pc_plus4;
         end
